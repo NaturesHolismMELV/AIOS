@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AIOS — Harmony Dashboard</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap');
+
+  :root {
+    --bg:          #050a0e;
+    --surface:     #0a1520;
+    --surface2:    #0f1f30;
+    --border:      #1a3050;
+    --coop:        #00e5a0;
+    --coop-dim:    #00e5a018;
+    --thresh:      #f5a623;
+    --thresh-dim:  #f5a62318;
+    --conflict:    #ff3d5a;
+    --conflict-dim:#ff3d5a18;
+    --text:        #c8ddf0;
+    --text-dim:    #4a6a8a;
+    --accent:      #0af;
+    --accent-dim:  #0af1;
+    --gold:        #c8a84b;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content:'';
+    position:fixed; inset:0;
+    background-image:
+      linear-gradient(rgba(0,170,255,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,170,255,0.025) 1px, transparent 1px);
+    background-size: 44px 44px;
+    pointer-events:none; z-index:0;
+  }
+
+  .shell {
+    position:relative; z-index:1;
+    display:grid;
+    grid-template-rows: 56px 1fr;
+    grid-template-columns: 200px 1fr;
+    height:100vh;
+  }
+
+  /* TOP BAR */
+  .topbar {
+    grid-column:1/-1;
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 0 20px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(5,10,14,0.95);
+    backdrop-filter: blur(16px);
+  }
+
+  .logo { display:flex; align-items:center; gap:10px; }
+  .logo-mark { width:28px; height:28px; }
+  .logo-mark svg { width:100%; height:100%; }
+  .logo-name { font-size:17px; font-weight:800; letter-spacing:.08em; color:#fff; }
+  .logo-sub  { font-family:'Space Mono',monospace; font-size:9px; color:#7ab8d4; letter-spacing:.12em; margin-top:1px; }
+
+  .ci-pill {
+    display:flex; align-items:center; gap:8px;
+    padding: 4px 14px;
+    border: 1px solid var(--coop);
+    border-radius: 2px;
+    background: var(--coop-dim);
+    font-family:'Space Mono',monospace; font-size:10px; color:var(--coop);
+    letter-spacing:.08em;
+  }
+  .ci-pill .val { font-size:14px; font-weight:700; }
+
+  .pulse {
+    width:7px; height:7px; border-radius:50%;
+    background:var(--coop); box-shadow: 0 0 8px var(--coop);
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.7)} }
+
+  .topbar-right {
+    display:flex; align-items:center; gap:14px;
+    font-family:'Space Mono',monospace; font-size:11px; color:#a0c8e8;
+    letter-spacing:.06em;
+  }
+  .topbar-right .sep { color:#2a5070; }
+
+  /* SIDEBAR */
+  .sidebar {
+    border-right: 1px solid var(--border);
+    background: var(--surface);
+    padding: 16px 0;
+    display:flex; flex-direction:column; gap:1px;
+    overflow-y:auto;
+  }
+  .nav-sec {
+    padding: 14px 16px 5px;
+    font-family:'Space Mono',monospace; font-size:8px;
+    color: #e8c84a; letter-spacing:.18em; text-transform:uppercase;
+  }
+  .nav-item {
+    display:flex; align-items:center; gap:9px;
+    padding: 8px 16px; font-size:12px; font-weight:600;
+    color: #a0c8e8; cursor:pointer; transition:all .15s;
+    border-left:2px solid transparent;
+  }
+  .nav-item:hover { color:#fff; background:var(--surface2); }
+  .nav-item.on { color:var(--accent); background:var(--accent-dim); border-left-color:var(--accent); }
+  .nav-dot { width:5px; height:5px; border-radius:50%; flex-shrink:0; }
+  .nav-badge {
+    margin-left:auto; font-family:'Space Mono',monospace; font-size:8px;
+    padding:1px 5px; border-radius:8px;
+    background:var(--conflict-dim); color:var(--conflict); border:1px solid var(--conflict);
+  }
+  .sidebar-foot {
+    margin-top:auto; padding:14px 16px;
+    border-top:1px solid var(--border);
+    font-family:'Space Mono',monospace; font-size:9px; color:#7ab8d4; line-height:1.9;
+  }
+
+  /* MAIN */
+  .main { overflow-y:auto; padding:20px; display:flex; flex-direction:column; gap:16px; }
+
+  /* CARDS */
+  .card {
+    background:var(--surface); border:1px solid var(--border); border-radius:3px; padding:16px;
+  }
+  .card-title {
+    font-family:'Space Mono',monospace; font-size:9px; letter-spacing:.15em;
+    color: #a0c8e8; text-transform:uppercase; margin-bottom:14px;
+    display:flex; align-items:center; gap:8px;
+  }
+  .card-title .live {
+    margin-left:auto; color:var(--coop); font-size:8px;
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  /* STAT ROW */
+  .stat-row { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+  .stat-card {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:3px; padding:14px 16px; position:relative; overflow:hidden;
+  }
+  .stat-card::after { content:''; position:absolute; top:0;left:0;right:0; height:2px; }
+  .stat-card.g::after { background:var(--coop); }
+  .stat-card.a::after { background:var(--thresh); }
+  .stat-card.b::after { background:var(--accent); }
+  .stat-card.o::after { background:var(--gold); }
+  .stat-label { font-family:'Space Mono',monospace; font-size:8px; letter-spacing:.12em; color: #e8c84a; text-transform:uppercase; margin-bottom:8px; }
+  .stat-val { font-size:28px; font-weight:800; line-height:1; margin-bottom:3px; }
+  .stat-card.g .stat-val { color:var(--coop); }
+  .stat-card.a .stat-val { color:var(--thresh); }
+  .stat-card.b .stat-val { color:var(--accent); }
+  .stat-card.o .stat-val { color:var(--gold); }
+  .stat-sub { font-family:'Space Mono',monospace; font-size:9px; color: #a0c8e8; }
+
+  /* GRID */
+  .g2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+
+  /* TABLE */
+  .tbl { width:100%; border-collapse:collapse; }
+  .tbl th {
+    font-family:'Space Mono',monospace; font-size:9px; letter-spacing:.12em;
+    color:#a0c8e8; text-transform:uppercase; text-align:left;
+    padding:0 8px 8px; border-bottom:1px solid var(--border);
+  }
+  .tbl td {
+    padding:8px 8px; font-size:12px;
+    border-bottom:1px solid rgba(26,48,80,.4); vertical-align:middle;
+  }
+  .tbl tr:last-child td { border-bottom:none; }
+  .tbl tr:hover td { background:var(--surface2); }
+  .agent-name { font-weight:700; color:#fff; font-size:12px; }
+  .agent-domain { font-size:10px; color:#7ab8d4; font-family:'Space Mono',monospace; }
+
+  /* BADGE */
+  .badge {
+    display:inline-block; padding:2px 7px; border-radius:2px;
+    font-family:'Space Mono',monospace; font-size:8px; font-weight:700; letter-spacing:.04em;
+  }
+  .badge.coop     { background:var(--coop-dim);     color:var(--coop);     border:1px solid var(--coop); }
+  .badge.thresh   { background:var(--thresh-dim);   color:var(--thresh);   border:1px solid var(--thresh); }
+  .badge.conflict { background:var(--conflict-dim); color:var(--conflict); border:1px solid var(--conflict); }
+  .badge.active   { background:var(--accent-dim);   color:var(--accent);   border:1px solid var(--accent); }
+  .badge.maturing { background:rgba(200,168,75,.1); color:var(--gold);     border:1px solid var(--gold); }
+  .badge.suspended{ background:rgba(90,90,90,.1);   color:#666;            border:1px solid #444; }
+
+  /* BAR */
+  .bar-wrap { width:70px; height:3px; background:var(--border); border-radius:2px; overflow:hidden; }
+  .bar-fill { height:100%; border-radius:2px; transition:width .4s ease; }
+  .bar-fill.phi { background:var(--gold); }
+  .bar-fill.eps { background:var(--accent); }
+
+  /* HEATMAP */
+  .hmap { display:grid; grid-template-columns:repeat(3,1fr); gap:3px; }
+  .hmap-cell {
+    height:40px; border-radius:2px; display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    font-family:'Space Mono',monospace; font-size:9px; font-weight:700;
+    cursor:default; transition:transform .15s; gap:2px;
+  }
+  .hmap-cell:hover { transform:scale(1.04); z-index:10; }
+
+  /* EVENTS */
+  .ev { display:flex; align-items:flex-start; gap:10px; padding:9px 0; border-bottom:1px solid var(--border); font-size:11px; }
+  .ev:last-child { border-bottom:none; }
+  .ev-time { font-family:'Space Mono',monospace; font-size:9px; color:#7ab8d4; white-space:nowrap; padding-top:2px; min-width:68px; }
+  .ev-icon { width:18px; height:18px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:9px; flex-shrink:0; }
+  .ev-icon.nudge   { background:var(--thresh-dim);   color:var(--thresh); }
+  .ev-icon.niche   { background:var(--accent-dim);   color:var(--accent); }
+  .ev-icon.resolve { background:var(--coop-dim);     color:var(--coop); }
+  .ev-icon.alert   { background:var(--conflict-dim); color:var(--conflict); }
+  .ev-icon.beta    { background:rgba(200,168,75,.1); color:var(--gold); }
+  .ev-desc { line-height:1.5; color:var(--text); }
+  .ev-desc strong { color:#fff; }
+
+  /* BETA SLIDERS */
+  .beta-item { margin-bottom:12px; }
+  .beta-lbl { display:flex; justify-content:space-between; font-family:'Space Mono',monospace; font-size:10px; color:#a0c8e8; margin-bottom:5px; }
+  .beta-lbl span:last-child { color:var(--accent); }
+  .beta-track { height:7px; background:var(--surface2); border:1px solid var(--border); border-radius:3px; overflow:hidden; }
+  .beta-fill  { height:100%; border-radius:3px; background:linear-gradient(90deg,var(--accent),var(--coop)); transition:width .4s ease; }
+
+  /* EQ BLOCK */
+  .eq {
+    background:var(--surface2); border:1px solid var(--border); border-radius:2px;
+    padding:10px 14px; font-family:'Space Mono',monospace; font-size:10px;
+    color:var(--text); line-height:2; margin-top:10px;
+  }
+  .eq .hi  { color:var(--coop); }
+  .eq .lo  { color:var(--accent); }
+  .eq .cm  { color:#7ab8d4; font-size:9px; }
+
+  /* OMEGA CANVAS */
+  #omega-canvas { width:100%; height:200px; display:block; }
+
+  /* ALERT */
+  .alert {
+    background:var(--thresh-dim); border:1px solid var(--thresh);
+    border-radius:2px; padding:9px 14px;
+    font-family:'Space Mono',monospace; font-size:9px; color:var(--thresh);
+    display:flex; align-items:center; gap:9px;
+  }
+
+  /* TICKER */
+  .ticker { border:1px solid var(--border); border-radius:2px; padding:7px 12px; overflow:hidden; }
+  .ticker-inner {
+    font-family:'Space Mono',monospace; font-size:9px; color:#7ab8d4;
+    display:inline-block; white-space:nowrap;
+    animation:tick 40s linear infinite;
+  }
+  @keyframes tick { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
+
+  /* LOADING */
+  .loading { color:#7ab8d4; font-family:'Space Mono',monospace; font-size:10px; padding:20px; text-align:center; }
+
+  /* STATUS DOT */
+  .status-dot { width:6px;height:6px;border-radius:50%;display:inline-block;margin-right:5px; }
+
+  ::-webkit-scrollbar { width:3px; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  ::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+</style>
+</head>
+<body>
+<div class="shell">
+
+<!-- TOP BAR -->
+<header class="topbar">
+  <div class="logo">
+    <div class="logo-mark">
+      <svg viewBox="0 0 28 28" fill="none">
+        <circle cx="14" cy="14" r="12" stroke="#0af" stroke-width="1.2" opacity=".35"/>
+        <circle cx="14" cy="14" r="7.5" stroke="#00e5a0" stroke-width="1.2" opacity=".55"/>
+        <circle cx="14" cy="14" r="3" fill="#00e5a0" opacity=".9"/>
+        <circle cx="14" cy="2" r="1.8" fill="#0af"/>
+        <circle cx="26" cy="14" r="1.8" fill="#f5a623"/>
+        <circle cx="14" cy="26" r="1.8" fill="#00e5a0"/>
+        <circle cx="2" cy="14" r="1.8" fill="#0af" opacity=".4"/>
+      </svg>
+    </div>
+    <div>
+      <div class="logo-name">AIOS</div>
+      <div class="logo-sub">Harmony Dashboard · MELVcore 0.1.0</div>
+    </div>
+  </div>
+
+  <div class="ci-pill">
+    <div class="pulse"></div>
+    COOPERATION INDEX &nbsp;
+    <span class="val" id="ci-val">—</span>
+  </div>
+
+  <div class="topbar-right">
+    <span id="n-agents">— agents</span>
+    <span class="sep">|</span>
+    <span id="n-interactions">— interactions</span>
+    <span class="sep">|</span>
+    <span id="n-thresh" style="color:var(--thresh)">— threshold</span>
+    <span class="sep">|</span>
+    <span id="clock">--:--:--</span>
+  </div>
+</header>
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="nav-sec">Ecosystem</div>
+  <div class="nav-item on" data-target="sec-overview"><div class="nav-dot" style="background:var(--accent)"></div>Overview</div>
+  <div class="nav-item" data-target="sec-ifactor"><div class="nav-dot" style="background:var(--coop)"></div>i-Factor Monitor</div>
+  <div class="nav-item" data-target="sec-omega"><div class="nav-dot" style="background:var(--gold)"></div>OmegaNet (Ω)</div>
+
+  <div class="nav-sec">Agents</div>
+  <div class="nav-item" data-target="sec-agents"><div class="nav-dot" style="background:var(--coop)"></div>Registry</div>
+  <div class="nav-item" data-target="sec-agents"><div class="nav-dot" style="background:var(--gold)"></div>φ Evolution</div>
+  <div class="nav-item" id="alert-nav" data-target="sec-events">
+    <div class="nav-dot" style="background:var(--thresh)"></div>Alerts
+    <span class="nav-badge" id="alert-badge">0</span>
+  </div>
+
+  <div class="nav-sec">Governance</div>
+  <div class="nav-item" data-target="sec-events"><div class="nav-dot" style="background:var(--text-dim)"></div>Audit Log</div>
+
+  <div class="nav-sec">Environment</div>
+  <div class="nav-item" data-target="sec-beta"><div class="nav-dot" style="background:var(--accent)"></div>β Provisioning</div>
+
+  <div class="sidebar-foot">
+    MELVcore v0.1.0<br>
+    Blueprint for Harmony<br>
+    © Ecotao Enterprises<br>
+    L.W. Evans
+  </div>
+</nav>
+
+<!-- MAIN -->
+<main class="main">
+
+  <!-- Alert banner (shown when threshold events exist) -->
+  <div class="alert" id="alert-banner" style="display:none">
+    <span>⚠</span>
+    <span id="alert-text">MELVcore: threshold zone detected</span>
+  </div>
+
+  <!-- Stat cards -->
+  <div class="stat-row" id="sec-overview">
+    <div class="stat-card g">
+      <div class="stat-label">Cooperation Index</div>
+      <div class="stat-val" id="s-ci">—</div>
+      <div class="stat-sub">CI = 1 − mean(βi) · target >75%</div>
+    </div>
+    <div class="stat-card a">
+      <div class="stat-label">Threshold Zone</div>
+      <div class="stat-val" id="s-thresh">—</div>
+      <div class="stat-sub">Agent pairs near βi = 1.0</div>
+    </div>
+    <div class="stat-card b">
+      <div class="stat-label">Mean i-factor</div>
+      <div class="stat-val" id="s-i">—</div>
+      <div class="stat-sub">Ecosystem interaction cost</div>
+    </div>
+    <div class="stat-card o">
+      <div class="stat-label">Mean φ (maturity)</div>
+      <div class="stat-val" id="s-phi">—</div>
+      <div class="stat-sub">Agent population maturity</div>
+    </div>
+  </div>
+
+  <!-- Gauge + Heatmap -->
+  <div class="g2" id="sec-ifactor">
+
+    <!-- CI Gauge -->
+    <div class="card">
+      <div class="card-title">● Cooperation Index <span class="live">● LIVE</span></div>
+      <div style="display:flex;flex-direction:column;align-items:center;padding:4px 0">
+        <svg width="180" height="96" viewBox="0 0 180 96" overflow="visible">
+          <defs>
+            <linearGradient id="gGrad" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stop-color="#ff3d5a"/>
+              <stop offset="45%" stop-color="#f5a623"/>
+              <stop offset="100%" stop-color="#00e5a0"/>
+            </linearGradient>
+          </defs>
+          <path d="M 10 90 A 80 80 0 0 1 170 90" fill="none" stroke="#1a3050" stroke-width="10" stroke-linecap="round"/>
+          <path id="gauge-arc" d="M 10 90 A 80 80 0 0 1 170 90" fill="none" stroke="url(#gGrad)"
+                stroke-width="10" stroke-linecap="round" stroke-dasharray="251.3" stroke-dashoffset="100"/>
+          <line id="needle" x1="90" y1="90" x2="23" y2="24" stroke="#00e5a0" stroke-width="2" stroke-linecap="round" transform="rotate(0,90,90)"/>
+          <circle cx="90" cy="90" r="4.5" fill="#0a1520" stroke="#00e5a0" stroke-width="1.5"/>
+          <text x="5"   y="108" fill="#4a6a8a" font-size="8" font-family="Space Mono">0</text>
+          <text x="82"  y="14"  fill="#4a6a8a" font-size="8" font-family="Space Mono">0.5</text>
+          <text x="160" y="108" fill="#4a6a8a" font-size="8" font-family="Space Mono">1</text>
+        </svg>
+        <div style="font-size:34px;font-weight:800;color:var(--coop);line-height:1;margin-top:-4px" id="gauge-val">—</div>
+        <div style="font-family:'Space Mono',monospace;font-size:9px;color:#a0c8e8;letter-spacing:.12em;margin-top:3px">COOPERATION INDEX · TARGET ≥ 0.75</div>
+      </div>
+      <div class="eq">
+        <span class="cm">// MELV threshold condition</span><br>
+        β·i &lt; 1.0 → <span class="hi">COOPERATIVE</span><br>
+        β·i ≥ 1.0 → <span class="lo">BIFURCATION REQUIRED</span>
+      </div>
+    </div>
+
+    <!-- i-Factor Heatmap -->
+    <div class="card">
+      <div class="card-title">◈ i-Factor Heatmap — Agent Pairs <span class="live">● LIVE</span></div>
+      <div class="hmap" id="heatmap"><div class="loading">Loading interactions…</div></div>
+    </div>
+  </div>
+
+  <!-- Agent Registry + Omega -->
+  <div class="g2" id="sec-agents">
+    <div class="card">
+      <div class="card-title">◉ Agent Registry <span class="live">● LIVE</span></div>
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>Agent</th><th>i-factor</th><th>φ</th><th>ε</th><th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="agent-tbody"><tr><td colspan="5" class="loading">Loading agents…</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="card" id="sec-omega">
+      <div class="card-title">⬡ OmegaNet — Service Coupling (Ω)</div>
+      <canvas id="omega-canvas"></canvas>
+      <div style="display:flex;gap:12px;margin-top:8px;font-family:'Space Mono',monospace;font-size:9px;color:#a0c8e8">
+        <span>● Agent</span>
+        <span style="color:var(--coop)">— Cooperative</span>
+        <span style="color:var(--thresh)">— Threshold</span>
+        <span style="margin-left:auto">β_service = <span style="color:var(--accent)" id="bs-val">—</span></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bifurcation Events + β Provisioning -->
+  <div class="g2" id="sec-events">
+    <div class="card">
+      <div class="card-title">⚡ Bifurcation Events <span class="live">● LIVE</span></div>
+      <div id="bif-events"><div class="loading">Loading events…</div></div>
+    </div>
+
+    <div class="card" id="sec-beta">
+      <div class="card-title">≈ β Provisioning — Environmental Suitability</div>
+      <div id="beta-panel"><div class="loading">Loading…</div></div>
+      <div class="eq">
+        <span class="cm">// β controls cooperation potential</span><br>
+        β↑ → <span class="hi">more niche opportunities</span><br>
+        β·i &lt; 1.0 → <span class="hi">cooperation emerges</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Live ticker -->
+  <div class="ticker">
+    <span class="ticker-inner" id="ticker-text">
+      Initialising MELVcore… connecting to agent ecosystem…&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+      Initialising MELVcore… connecting to agent ecosystem…
+    </span>
+  </div>
+
+</main>
+</div>
+
+<script>
+// ── CONFIG ────────────────────────────────────────────────────────────────
+const API = 'http://localhost:8000/api';
+let lastInteractions = [];
+let tickerItems = [];
+
+// ── NAV SCROLL ────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+  const navItems = document.querySelectorAll('.nav-item[data-target]');
+  const mainPanel = document.querySelector('.main');
+
+  navItems.forEach(function(item) {
+    item.addEventListener('click', function() {
+      // Update active state
+      navItems.forEach(function(n) { n.classList.remove('on'); });
+      item.classList.add('on');
+
+      // Scroll the main panel to the target section
+      const targetId = item.getAttribute('data-target');
+      const target = document.getElementById(targetId);
+      if (target && mainPanel) {
+        mainPanel.scrollTo({ top: target.offsetTop - 10, behavior: 'smooth' });
+      }
+    });
+  });
+});
+
+// ── CLOCK ─────────────────────────────────────────────────────────────────
+setInterval(() => {
+  document.getElementById('clock').textContent =
+    new Date().toTimeString().slice(0,8);
+}, 1000);
+
+// ── GAUGE UPDATE ──────────────────────────────────────────────────────────
+function updateGauge(ci) {
+  const arcLen = 251.3;
+  const offset = arcLen * (1 - ci);
+  document.getElementById('gauge-arc').setAttribute('stroke-dashoffset', offset.toFixed(1));
+
+  // Needle: maps ci=0 to -90deg, ci=1 to +90deg (relative to center bottom)
+  const angle = (ci - 0.5) * 180;
+  document.getElementById('needle').setAttribute('transform',
+    `rotate(${angle.toFixed(1)}, 90, 90)`);
+
+  document.getElementById('gauge-val').textContent = ci.toFixed(3);
+  document.getElementById('ci-val').textContent = ci.toFixed(3);
+
+  // Color the CI value
+  const col = ci >= 0.75 ? 'var(--coop)' : ci >= 0.5 ? 'var(--thresh)' : 'var(--conflict)';
+  document.getElementById('gauge-val').style.color = col;
+  document.getElementById('ci-val').parentElement.style.borderColor = col;
+  document.getElementById('ci-val').parentElement.style.color = col;
+}
+
+// ── HEALTH FETCH & UPDATE ─────────────────────────────────────────────────
+async function updateHealth() {
+  try {
+    const r = await fetch(`${API}/health`);
+    const d = await r.json();
+
+    const ci = d.cooperation_index;
+    updateGauge(ci);
+    document.getElementById('s-ci').textContent = (ci * 100).toFixed(1) + '%';
+    document.getElementById('s-thresh').textContent = d.threshold_zone_count;
+    document.getElementById('s-i').textContent  = d.mean_i_factor.toFixed(3);
+    document.getElementById('s-phi').textContent = d.mean_phi.toFixed(3);
+    document.getElementById('n-agents').textContent = `${d.n_agents} agents`;
+    document.getElementById('n-interactions').textContent = `${d.n_interactions_total} interactions`;
+    document.getElementById('n-thresh').textContent =
+      `${d.threshold_zone_count + d.conflict_count} alerts`;
+
+    // Alert badge
+    const alertCount = d.threshold_zone_count + d.conflict_count;
+    document.getElementById('alert-badge').textContent = alertCount;
+
+    // Alert banner
+    const banner = document.getElementById('alert-banner');
+    if (d.recent_events && d.recent_events.length > 0) {
+      const latest = d.recent_events[d.recent_events.length - 1];
+      banner.style.display = 'flex';
+      document.getElementById('alert-text').textContent =
+        `MELVcore: ${latest.description}`;
+    } else {
+      banner.style.display = 'none';
+    }
+
+    // Beta panel
+    updateBeta(d.beta_environment);
+
+    // Events
+    if (d.recent_events) updateEvents(d.recent_events);
+
+    // Omega
+    if (d.omega) updateOmega(d.omega, d.n_agents);
+
+  } catch(e) {
+    document.getElementById('s-ci').textContent = 'ERR';
+    console.error('Health fetch failed:', e);
+  }
+}
+
+// ── AGENTS TABLE ──────────────────────────────────────────────────────────
+async function updateAgents() {
+  try {
+    const r = await fetch(`${API}/agents`);
+    const d = await r.json();
+    const tbody = document.getElementById('agent-tbody');
+
+    // Get recent interactions for per-agent i-factor
+    const ir = await fetch(`${API}/interactions?n=100`);
+    const id = await ir.json();
+    const recentInter = id.interactions || [];
+
+    // Compute per-agent average i-factor from recent interactions
+    const agentI = {};
+    recentInter.forEach(x => {
+      [x.agent_a, x.agent_b].forEach(aid => {
+        if (!agentI[aid]) agentI[aid] = [];
+        agentI[aid].push(x.beta_i);
+      });
+    });
+
+    tbody.innerHTML = '';
+    (d.agents || []).forEach(a => {
+      const avgI = agentI[a.agent_id]
+        ? (agentI[a.agent_id].reduce((s,v)=>s+v,0)/agentI[a.agent_id].length)
+        : 0.5;
+
+      const iCol = avgI < 0.7 ? 'var(--coop)' : avgI < 1.0 ? 'var(--thresh)' : 'var(--conflict)';
+      const badgeClass =
+        a.status === 'threshold' ? 'thresh' :
+        a.status === 'maturing'  ? 'maturing' :
+        a.status === 'suspended' ? 'suspended' : 'active';
+      const epsMax = 8;
+
+      tbody.innerHTML += `
+        <tr>
+          <td>
+            <div class="agent-name">${a.agent_id}</div>
+            <div class="agent-domain">${a.domain}</div>
+          </td>
+          <td style="font-family:'Space Mono',monospace;font-size:11px;color:${iCol};font-weight:700">
+            ${avgI.toFixed(3)}
+          </td>
+          <td>
+            <div class="bar-wrap"><div class="bar-fill phi" style="width:${a.phi*100}%"></div></div>
+            <div style="font-family:'Space Mono',monospace;font-size:8px;color:var(--text-dim);margin-top:2px">${a.phi.toFixed(2)}</div>
+          </td>
+          <td>
+            <div class="bar-wrap"><div class="bar-fill eps" style="width:${(a.epsilon/epsMax)*100}%"></div></div>
+            <div style="font-family:'Space Mono',monospace;font-size:8px;color:var(--text-dim);margin-top:2px">${a.epsilon.toFixed(1)}</div>
+          </td>
+          <td><span class="badge ${badgeClass}">${a.status.toUpperCase()}</span></td>
+        </tr>`;
+    });
+
+    // Update heatmap from interactions
+    updateHeatmap(recentInter, d.agents || []);
+
+    // Update ticker
+    updateTicker(recentInter.slice(-20));
+
+  } catch(e) {
+    console.error('Agents fetch failed:', e);
+  }
+}
+
+// ── HEATMAP ───────────────────────────────────────────────────────────────
+function updateHeatmap(interactions, agents) {
+  const hm = document.getElementById('heatmap');
+
+  // Build pair averages
+  const pairs = {};
+  interactions.forEach(x => {
+    const key = [x.agent_a, x.agent_b].sort().join('×');
+    if (!pairs[key]) pairs[key] = [];
+    pairs[key].push(x.beta_i);
+  });
+
+  const sorted = Object.entries(pairs)
+    .map(([k, vals]) => ({
+      key: k,
+      avg: vals.reduce((s,v)=>s+v,0)/vals.length,
+      count: vals.length
+    }))
+    .sort((a,b) => b.avg - a.avg)
+    .slice(0, 12);
+
+  if (sorted.length === 0) { hm.innerHTML = '<div class="loading">Accumulating interactions…</div>'; return; }
+
+  hm.innerHTML = '';
+  hm.className = 'hmap';
+  sorted.forEach(({key, avg}) => {
+    const bg  = avg < 0.7 ? `rgba(0,229,160,${0.08+avg*.12})` :
+                avg < 1.0 ? `rgba(245,166,35,${0.12+avg*.1})` :
+                            `rgba(255,61,90,0.25)`;
+    const col = avg < 0.7 ? 'var(--coop)' : avg < 1.0 ? 'var(--thresh)' : 'var(--conflict)';
+    const short = key.split('×').map(s => s.split('-')[0]).join('×');
+    const cell = document.createElement('div');
+    cell.className = 'hmap-cell';
+    cell.style.cssText = `background:${bg};border:1px solid ${col}33;color:${col}`;
+    cell.title = `${key}: βi=${avg.toFixed(3)}`;
+    cell.innerHTML = `<span style="font-size:7px;color:var(--text-dim)">${short}</span><span>${avg.toFixed(3)}</span>`;
+    hm.appendChild(cell);
+  });
+}
+
+// ── EVENTS ────────────────────────────────────────────────────────────────
+function updateEvents(events) {
+  const container = document.getElementById('bif-events');
+  if (!events || events.length === 0) {
+    container.innerHTML = '<div class="loading">No bifurcation events yet…</div>';
+    return;
+  }
+  const iconMap = {
+    nudge:            {cls:'nudge',   icon:'⚡'},
+    niche_divergence: {cls:'niche',   icon:'⟂'},
+    provision_beta:   {cls:'beta',    icon:'β'},
+    route_service:    {cls:'resolve', icon:'→'},
+    agent_substitute: {cls:'alert',   icon:'!'},
+    none:             {cls:'resolve', icon:'✓'},
+  };
+  container.innerHTML = '';
+  [...events].reverse().slice(0,8).forEach(e => {
+    const im = iconMap[e.action] || {cls:'resolve', icon:'?'};
+    const t  = new Date(e.timestamp * 1000).toTimeString().slice(0,8);
+    container.innerHTML += `
+      <div class="ev">
+        <div class="ev-time">${t}</div>
+        <div class="ev-icon ${im.cls}">${im.icon}</div>
+        <div class="ev-desc">${e.description}</div>
+      </div>`;
+  });
+}
+
+// ── BETA PANEL ────────────────────────────────────────────────────────────
+function updateBeta(beta) {
+  const panel = document.getElementById('beta-panel');
+  const labels = {
+    compute:      'Compute (CPU/GPU)',
+    api_quota:    'API Quota (external)',
+    vector_db:    'Vector DB bandwidth',
+    storage:      'File Storage I/O',
+    token_budget: 'Token Budget',
+  };
+  const maxBeta = 2.0;
+  panel.innerHTML = '';
+  Object.entries(labels).forEach(([key, label]) => {
+    const val  = beta[key] || 1.0;
+    const pct  = Math.min(100, (val / maxBeta) * 100);
+    panel.innerHTML += `
+      <div class="beta-item">
+        <div class="beta-lbl"><span>${label}</span><span>β=${val.toFixed(2)}</span></div>
+        <div class="beta-track"><div class="beta-fill" style="width:${pct}%"></div></div>
+      </div>`;
+  });
+}
+
+// ── OMEGA CANVAS ──────────────────────────────────────────────────────────
+function updateOmega(omega, nAgents) {
+  document.getElementById('bs-val').textContent = omega.beta_service.toFixed(4);
+  const canvas = document.getElementById('omega-canvas');
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width  = canvas.offsetWidth  * dpr;
+  canvas.height = canvas.offsetHeight * dpr;
+  ctx.scale(dpr, dpr);
+  const W = canvas.offsetWidth, H = canvas.offsetHeight;
+  ctx.clearRect(0, 0, W, H);
+
+  if (!omega.edges || omega.edges.length === 0) return;
+
+  // Collect unique node names
+  const nodeSet = new Set();
+  omega.edges.forEach(e => { nodeSet.add(e.agent_a); nodeSet.add(e.agent_b); });
+  const nodes = Array.from(nodeSet);
+  const n = nodes.length;
+  const cx = W/2, cy = H/2, r = Math.min(W,H)*0.36;
+
+  const pos = {};
+  nodes.forEach((name, i) => {
+    const angle = (2 * Math.PI * i / n) - Math.PI/2;
+    pos[name] = { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) };
+  });
+
+  // Edges
+  omega.edges.forEach(e => {
+    const a = pos[e.agent_a], b = pos[e.agent_b];
+    if (!a || !b) return;
+    const col = e.interaction_type === 'cooperative' ? '#00e5a0' :
+                e.interaction_type === 'threshold'   ? '#f5a623' : '#ff3d5a';
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.strokeStyle = col;
+    ctx.globalAlpha = 0.55;
+    ctx.lineWidth   = Math.max(0.5, e.weight * 3);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  });
+
+  // Nodes
+  const nodeColors = ['#0af','#00e5a0','#f5a623','#c8a84b','#0af','#00e5a0','#f5a623'];
+  nodes.forEach((name, i) => {
+    const p   = pos[name];
+    const col = nodeColors[i % nodeColors.length];
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 4.5, 0, 2*Math.PI);
+    ctx.fillStyle   = col;
+    ctx.shadowColor = col;
+    ctx.shadowBlur  = 7;
+    ctx.fill();
+    ctx.shadowBlur  = 0;
+
+    const short = name.split('-')[0];
+    const dx = p.x - cx, dy = p.y - cy;
+    const dist = Math.sqrt(dx*dx + dy*dy) || 1;
+    ctx.font = '7px Space Mono';
+    ctx.fillStyle   = '#4a6a8a';
+    ctx.textAlign   = 'center';
+    ctx.fillText(short, p.x + (dx/dist)*13, p.y + (dy/dist)*13 + 3);
+  });
+}
+
+// ── TICKER ────────────────────────────────────────────────────────────────
+function updateTicker(interactions) {
+  if (!interactions || interactions.length === 0) return;
+  const items = interactions.map(x => {
+    const t = new Date(x.timestamp * 1000).toTimeString().slice(0,8);
+    const col = x.interaction_type === 'cooperative' ? '#00e5a0' :
+                x.interaction_type === 'threshold'   ? '#f5a623' : '#ff3d5a';
+    return `[${t}] <span style="color:${col}">${x.agent_a}×${x.agent_b}</span> i=${x.i_factor.toFixed(3)} βi=${x.beta_i.toFixed(3)} ${x.interaction_type.toUpperCase()}`;
+  }).join('&nbsp;&nbsp;·&nbsp;&nbsp;');
+
+  const full = items + '&nbsp;&nbsp;·&nbsp;&nbsp;' + items;
+  document.getElementById('ticker-text').innerHTML = full;
+}
+
+// ── POLLING LOOP ──────────────────────────────────────────────────────────
+async function refresh() {
+  await updateHealth();
+  await updateAgents();
+}
+
+refresh();
+setInterval(refresh, 3000);  // live update every 3 seconds
+</script>
+</body>
+</html>
