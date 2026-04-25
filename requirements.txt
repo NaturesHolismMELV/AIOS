@@ -1,0 +1,27 @@
+# AIOS / MELVcore v1.6.0 — Session 14
+# Install: pip install -r requirements.txt
+
+# Core API
+fastapi>=0.100
+uvicorn[standard]>=0.22
+pydantic>=2.0
+starlette>=0.27
+weasyprint>=60.0       # PDF certification reports (Session 19)
+mcp>=1.0               # MCP server SDK (Session 14)
+
+# HTTP client (for real LLM agent calls)
+httpx>=0.24
+anthropic>=0.25
+
+# Data
+aiofiles>=23.0
+
+# Dev / test (not needed in production)
+# pip install -r requirements-dev.txt
+# pytest>=7.0
+# pytest-asyncio>=0.21
+# pytest-env>=1.0
+
+# Optional: LangGraph adapter
+# langgraph>=0.1     # pip install langgraph
+numpy>=1.24.0

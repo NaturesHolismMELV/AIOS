@@ -1,0 +1,64 @@
+{
+  "schema_version": "2025-03-26",
+  "name": "MELVcore",
+  "version": "1.9.0",
+  "description": "Thermodynamic agent certification and ecosystem governance. Certify whether an AI agent cooperates or degrades a multi-agent environment using the Modified Energetic Lotka-Volterra (MELV) framework.",
+  "author": "L.W. Evans \u2014 Ecotao Enterprises, Cape Town",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/NaturesHolismMELV/AIOS",
+  "citation": "Evans, L.W. (2026). Blueprint for Harmony. Cooperation Press. https://doi.org/10.5281/zenodo.17680563",
+  "transports": {
+    "streamable_http": {
+      "path": "/mcp",
+      "description": "Recommended transport (MCP 2025-03-26 spec)"
+    },
+    "sse": {
+      "path": "/mcp/sse",
+      "description": "Legacy SSE transport for older MCP clients"
+    },
+    "stdio": {
+      "command": "python mcp/server.py",
+      "description": "Stdio transport for Claude Desktop"
+    }
+  },
+  "tools": [
+    {
+      "name": "get_cooperation_index",
+      "description": "Get the live Cooperation Index (CI) of the running AIOS ecosystem. CI \u2265 0.75 = cooperative basin. Returns regime, agent count, and plain-language recommendation.",
+      "when_to_use": "Before deploying a new agent, or to check ecosystem health at any time."
+    },
+    {
+      "name": "certify_agent",
+      "description": "Run a full MELVcore sandbox certification. Simulates 500 interactions between the agent and a reference ecosystem, returning a CLS score and CERTIFIED / CERTIFIED_WITH_ADVISORY / NOT_CERTIFIED verdict.",
+      "when_to_use": "Before deploying any new AI agent into a shared multi-agent environment."
+    },
+    {
+      "name": "record_interaction",
+      "description": "Record a cost/benefit interaction between two agents in the live kernel. Enables real-time governance \u2014 call after each significant agent operation to keep CI tracking current.",
+      "when_to_use": "From within agent logic, after each meaningful resource-consuming operation."
+    },
+    {
+      "name": "provision_beta",
+      "description": "Adjust environmental suitability (\u03b2) for a resource type. \u03b2 < 1.0 = scarce (raises conflict pressure), \u03b2 > 1.0 = abundant (lowers conflict pressure). Human operator portal.",
+      "when_to_use": "To simulate resource constraints or model environment changes."
+    }
+  ],
+  "resources": [
+    {
+      "uri": "melvcore://ecosystem/health",
+      "description": "Live ecosystem health snapshot: CI, agent count, interaction totals, recent events."
+    },
+    {
+      "uri": "melvcore://registry",
+      "description": "MELVcore Compatibility Registry \u2014 all agents that have passed sandbox certification."
+    }
+  ],
+  "concepts": {
+    "CI": "Cooperation Index \u2014 1 \u2212 mean(\u03b2\u00b7i). Range [0,1]. Target \u2265 0.75.",
+    "CLS": "Composite Longevity Score \u2014 0\u2013100. \u226580 = certified, \u226550 = advisory, <50 = not certified.",
+    "phi": "Evolutionary maturity \u03c6 \u2014 agent domain optimisation [0,1]. 0=novice, 0.85+=expert.",
+    "epsilon": "Adaptive plasticity \u03b5 \u2014 learning/adaptation rate [0,8]. >4.5 may destabilise.",
+    "beta": "Environmental suitability \u03b2 \u2014 resource availability [0.1,3.0]. 1.0=neutral.",
+    "i_factor": "Interaction factor i = cost/benefit. i<1 = cooperative, i>1 = conflict."
+  }
+}

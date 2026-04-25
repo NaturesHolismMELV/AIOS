@@ -1,0 +1,25 @@
+# render.yaml — Render deployment configuration
+# Deploy at https://render.com — connect your GitHub repo
+# and select "New Web Service"
+
+services:
+  - type: web
+    name: melvcore-demo
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn api.server:app --host 0.0.0.0 --port $PORT --workers 1
+    envVars:
+      - key: AIOS_DB_PATH
+        value: /tmp/aios_state.db
+      - key: AIOS_RATE_LIMIT_REQUESTS
+        value: "60"
+      - key: AIOS_RATE_LIMIT_WINDOW
+        value: "60"
+      - key: AIOS_SANDBOX_LIMIT
+        value: "5"
+      - key: AIOS_SANDBOX_WINDOW
+        value: "3600"
+      # Set AIOS_API_KEY in Render dashboard (Environment > Secret Files)
+      # Leave unset for open demo mode
+    plan: free          # upgrade to starter ($7/mo) for always-on
+    autoDeploy: true

@@ -1,0 +1,1706 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MELVcore â€” Agent Stability Certification</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --ink:       #0a0f1a;
+  --ink2:      #1a2540;
+  --paper:     #f5f2eb;
+  --paper2:    #ede9e0;
+  --green:     #00875a;
+  --green-dim: #e6f4ef;
+  --amber:     #b45309;
+  --amber-dim: #fef3c7;
+  --red:       #b91c1c;
+  --red-dim:   #fee2e2;
+  --blue:      #1d4ed8;
+  --blue-dim:  #eff6ff;
+  --accent:    #1a6b4a;
+  --border:    rgba(10,15,26,0.12);
+  --mono:      'DM Mono', monospace;
+  --sans:      'Syne', sans-serif;
+  --radius:    4px;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--sans);
+  background: var(--paper);
+  color: var(--ink);
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+
+/* â”€â”€ NOISE TEXTURE OVERLAY â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none; z-index: 1000; opacity: 0.4;
+}
+
+/* â”€â”€ HEADER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 40px;
+  border-bottom: 1px solid var(--border);
+  background: var(--paper);
+  position: sticky; top: 0; z-index: 100;
+}
+
+.logo {
+  display: flex; align-items: baseline; gap: 10px;
+}
+.logo-mark {
+  font-family: var(--mono); font-size: 13px; font-weight: 500;
+  letter-spacing: .18em; color: var(--accent);
+  border: 1.5px solid var(--accent);
+  padding: 3px 8px; border-radius: var(--radius);
+}
+.logo-name {
+  font-size: 15px; font-weight: 700; letter-spacing: .04em; color: var(--ink);
+}
+.logo-version {
+  font-family: var(--mono); font-size: 10px; color: #888; letter-spacing: .1em;
+}
+
+nav { display: flex; gap: 28px; align-items: center; }
+nav a {
+  font-size: 13px; font-weight: 600; letter-spacing: .04em;
+  color: var(--ink2); text-decoration: none;
+  opacity: 0.7; transition: opacity .15s;
+}
+nav a:hover { opacity: 1; }
+nav .btn-nav {
+  background: var(--ink); color: var(--paper);
+  padding: 7px 18px; border-radius: var(--radius);
+  font-size: 12px; font-weight: 700; letter-spacing: .06em;
+  opacity: 1; transition: background .15s;
+}
+nav .btn-nav:hover { background: var(--accent); }
+
+/* â”€â”€ HERO â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.hero {
+  display: grid; grid-template-columns: 1fr 1fr;
+  min-height: 86vh; align-items: center;
+  padding: 60px 40px 60px 80px; gap: 60px;
+}
+
+.hero-left { max-width: 560px; }
+
+.hero-tag {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: var(--mono); font-size: 10px; letter-spacing: .18em;
+  color: var(--accent); background: var(--green-dim);
+  border: 1px solid rgba(0,135,90,.2);
+  padding: 4px 12px; border-radius: 20px; margin-bottom: 28px;
+}
+.hero-tag::before {
+  content: ''; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--green); animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: .5; transform: scale(.85); }
+}
+
+h1 {
+  font-size: clamp(38px, 5vw, 62px);
+  font-weight: 800; line-height: 1.06;
+  letter-spacing: -.02em; color: var(--ink);
+  margin-bottom: 24px;
+}
+
+h1 em {
+  font-style: normal; color: var(--accent);
+  position: relative;
+}
+h1 em::after {
+  content: '';
+  position: absolute; bottom: 2px; left: 0; right: 0;
+  height: 3px; background: var(--accent); opacity: .25;
+}
+
+.hero-sub {
+  font-size: 17px; line-height: 1.65; color: #444;
+  margin-bottom: 36px; font-weight: 400;
+}
+
+.hero-actions { display: flex; gap: 14px; flex-wrap: wrap; }
+
+.btn-primary {
+  background: var(--ink); color: var(--paper);
+  padding: 13px 28px; border-radius: var(--radius);
+  font-family: var(--sans); font-size: 14px; font-weight: 700;
+  letter-spacing: .04em; border: none; cursor: pointer;
+  transition: background .15s, transform .1s;
+  text-decoration: none; display: inline-flex; align-items: center; gap: 8px;
+}
+.btn-primary:hover { background: var(--accent); transform: translateY(-1px); }
+
+.btn-secondary {
+  background: transparent; color: var(--ink);
+  padding: 12px 26px; border-radius: var(--radius);
+  font-family: var(--sans); font-size: 14px; font-weight: 600;
+  border: 1.5px solid var(--border); cursor: pointer;
+  transition: border-color .15s, transform .1s;
+  text-decoration: none; display: inline-flex; align-items: center; gap: 8px;
+}
+.btn-secondary:hover { border-color: var(--ink); transform: translateY(-1px); }
+
+/* â”€â”€ HERO RIGHT â€” LIVE CI METER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.hero-right {
+  display: flex; flex-direction: column; gap: 16px;
+  font-family: var(--mono);
+}
+
+.ci-card {
+  background: var(--ink); color: var(--paper);
+  border-radius: 8px; padding: 28px;
+  position: relative; overflow: hidden;
+}
+.ci-card::before {
+  content: '';
+  position: absolute; top: -40px; right: -40px;
+  width: 160px; height: 160px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(0,135,90,.15) 0%, transparent 70%);
+}
+
+.ci-label { font-size: 9px; letter-spacing: .2em; color: #888; margin-bottom: 8px; }
+.ci-value { font-size: 52px; font-weight: 500; line-height: 1; margin-bottom: 4px; }
+.ci-status { font-size: 11px; letter-spacing: .12em; margin-bottom: 20px; }
+
+.ci-bar-wrap {
+  height: 6px; background: rgba(255,255,255,.1); border-radius: 3px;
+  position: relative; margin-bottom: 6px;
+}
+.ci-bar-fill {
+  height: 100%; border-radius: 3px;
+  background: linear-gradient(90deg, #ef4444, #f59e0b 50%, #00875a);
+  transition: width .6s cubic-bezier(.4,0,.2,1);
+  width: 0%;
+}
+.ci-bar-threshold {
+  position: absolute; top: -3px; left: 75%;
+  width: 1px; height: 12px; background: rgba(255,255,255,.4);
+}
+.ci-bar-labels {
+  display: flex; justify-content: space-between;
+  font-size: 8px; color: #666;
+}
+
+.stats-row {
+  display: grid; grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+}
+
+.stat-box {
+  background: var(--paper2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px;
+}
+.stat-box-label { font-size: 8px; letter-spacing: .16em; color: #888; margin-bottom: 5px; }
+.stat-box-val { font-size: 20px; font-weight: 500; color: var(--ink); }
+.stat-box-unit { font-size: 8px; color: #aaa; margin-top: 2px; }
+
+/* â”€â”€ HOW IT WORKS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.how-section {
+  padding: 80px 80px;
+  border-top: 1px solid var(--border);
+  background: var(--paper2);
+}
+
+.section-tag {
+  font-family: var(--mono); font-size: 9px; letter-spacing: .2em;
+  color: #888; text-transform: uppercase; margin-bottom: 16px;
+}
+
+.how-section h2 {
+  font-size: 36px; font-weight: 800; letter-spacing: -.015em;
+  margin-bottom: 48px; max-width: 520px;
+}
+
+.steps {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px;
+}
+
+.step {
+  padding: 28px; background: var(--paper);
+  border: 1px solid var(--border); border-radius: 6px;
+  position: relative;
+}
+
+.step-num {
+  font-family: var(--mono); font-size: 48px; font-weight: 300;
+  color: rgba(0,0,0,.06); position: absolute; top: 16px; right: 20px;
+  line-height: 1;
+}
+
+.step h3 { font-size: 16px; font-weight: 700; margin-bottom: 10px; }
+.step p { font-size: 13px; line-height: 1.7; color: #555; }
+
+.step-tag {
+  display: inline-block; font-family: var(--mono); font-size: 9px;
+  letter-spacing: .14em; padding: 2px 8px; border-radius: 20px;
+  margin-bottom: 12px;
+}
+.tag-green { background: var(--green-dim); color: var(--accent); }
+.tag-amber { background: var(--amber-dim); color: var(--amber); }
+.tag-blue  { background: var(--blue-dim);  color: var(--blue);  }
+
+/* â”€â”€ LIVE SANDBOX â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.sandbox-section {
+  padding: 80px;
+  border-top: 1px solid var(--border);
+}
+
+.sandbox-section h2 {
+  font-size: 36px; font-weight: 800; letter-spacing: -.015em; margin-bottom: 10px;
+}
+.sandbox-section .sub {
+  font-size: 15px; color: #666; margin-bottom: 48px;
+}
+
+.sandbox-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: start;
+}
+
+.form-card {
+  background: var(--paper2); border: 1px solid var(--border);
+  border-radius: 6px; padding: 32px;
+}
+
+.form-title {
+  font-family: var(--mono); font-size: 10px; letter-spacing: .18em;
+  color: #888; margin-bottom: 24px;
+}
+
+.field { margin-bottom: 18px; }
+.field label {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 12px; font-weight: 600; letter-spacing: .04em;
+  margin-bottom: 6px; color: var(--ink);
+}
+.field label span {
+  font-family: var(--mono); font-size: 11px; font-weight: 400; color: #888;
+}
+
+.field input[type="text"],
+.field input[type="number"],
+.field select {
+  width: 100%; padding: 9px 12px;
+  background: var(--paper); border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-family: var(--mono); font-size: 13px; color: var(--ink);
+  outline: none; transition: border-color .15s;
+  -webkit-appearance: none;
+}
+.field input:focus, .field select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(0,135,90,.1);
+}
+
+.range-wrap { display: flex; gap: 10px; align-items: center; }
+.field input[type="range"] { flex: 1; accent-color: var(--accent); }
+.range-val {
+  font-family: var(--mono); font-size: 13px; color: var(--accent);
+  min-width: 32px; text-align: right;
+}
+
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+.btn-submit {
+  width: 100%; padding: 14px;
+  background: var(--ink); color: var(--paper);
+  border: none; border-radius: var(--radius);
+  font-family: var(--sans); font-size: 14px; font-weight: 700;
+  letter-spacing: .04em; cursor: pointer;
+  transition: background .15s; margin-top: 8px;
+}
+.btn-submit:hover { background: var(--accent); }
+.btn-submit:disabled { opacity: .5; cursor: not-allowed; }
+
+/* â”€â”€ RESULT CARD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.result-card {
+  background: var(--paper2); border: 1px solid var(--border);
+  border-radius: 6px; padding: 32px; min-height: 420px;
+  display: flex; flex-direction: column;
+}
+
+.result-empty {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 12px;
+  opacity: .5;
+}
+.result-empty-icon { font-size: 40px; }
+.result-empty-text { font-family: var(--mono); font-size: 11px; letter-spacing: .1em; }
+
+.result-loading {
+  display: none; flex-direction: column; gap: 16px; padding: 16px 0;
+}
+.progress-bar-wrap {
+  height: 4px; background: rgba(0,0,0,.08); border-radius: 2px; overflow: hidden;
+}
+.progress-bar-fill {
+  height: 100%; background: var(--accent); border-radius: 2px;
+  transition: width .4s ease; width: 0%;
+}
+.progress-label {
+  font-family: var(--mono); font-size: 10px; letter-spacing: .12em; color: #888;
+}
+
+.result-content { display: none; flex-direction: column; gap: 16px; }
+
+.verdict-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 8px 18px; border-radius: 4px;
+  font-family: var(--mono); font-size: 12px; letter-spacing: .1em;
+  font-weight: 500; align-self: flex-start;
+}
+.verdict-certified     { background: var(--green-dim); color: var(--green); border: 1px solid rgba(0,135,90,.3); }
+.verdict-advisory      { background: var(--amber-dim); color: var(--amber); border: 1px solid rgba(180,83,9,.3); }
+.verdict-not-certified { background: var(--red-dim);   color: var(--red);   border: 1px solid rgba(185,28,28,.3); }
+
+.result-metrics {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+}
+
+.metric-box {
+  background: var(--paper); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 12px 14px;
+}
+.metric-label {
+  font-family: var(--mono); font-size: 8px; letter-spacing: .16em; color: #999;
+  margin-bottom: 4px;
+}
+.metric-val {
+  font-family: var(--mono); font-size: 18px; font-weight: 500; color: var(--ink);
+}
+
+.cls-gauge-wrap {
+  background: var(--paper); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px 16px;
+}
+.cls-gauge-label {
+  display: flex; justify-content: space-between;
+  font-family: var(--mono); font-size: 9px; letter-spacing: .14em; color: #888;
+  margin-bottom: 8px;
+}
+.cls-gauge-bar {
+  height: 8px; background: rgba(0,0,0,.06); border-radius: 4px;
+  overflow: hidden; position: relative;
+}
+.cls-gauge-fill {
+  height: 100%; border-radius: 4px;
+  background: linear-gradient(90deg, #ef4444 0%, #f59e0b 50%, #00875a 80%);
+  transition: width .8s cubic-bezier(.4,0,.2,1);
+}
+.cls-gauge-markers {
+  display: flex; justify-content: space-between;
+  margin-top: 4px; font-family: var(--mono); font-size: 8px; color: #bbb;
+}
+
+.narrative-box {
+  background: var(--paper); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px 16px;
+  font-size: 12px; line-height: 1.7; color: #555;
+}
+.narrative-label {
+  font-family: var(--mono); font-size: 8px; letter-spacing: .16em; color: #999;
+  margin-bottom: 6px;
+}
+
+.advisory-box {
+  background: var(--amber-dim); border: 1px solid rgba(180,83,9,.2);
+  border-radius: var(--radius); padding: 12px 14px;
+  font-size: 12px; color: var(--amber); line-height: 1.6; display: none;
+}
+
+.error-box {
+  background: var(--red-dim); border: 1px solid rgba(185,28,28,.2);
+  border-radius: var(--radius); padding: 14px;
+  font-family: var(--mono); font-size: 12px; color: var(--red); display: none;
+}
+
+/* â”€â”€ METRICS STRIP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.metrics-strip {
+  display: flex; justify-content: space-around;
+  padding: 40px 80px; background: var(--ink); color: var(--paper);
+  border-top: 1px solid rgba(255,255,255,.05);
+}
+
+.strip-item { text-align: center; }
+.strip-val { font-family: var(--mono); font-size: 32px; font-weight: 300; margin-bottom: 4px; }
+.strip-label { font-family: var(--mono); font-size: 9px; letter-spacing: .18em; color: #666; }
+
+/* â”€â”€ FOOTER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+footer {
+  padding: 32px 80px;
+  border-top: 1px solid var(--border);
+  display: flex; justify-content: space-between; align-items: center;
+  font-family: var(--mono); font-size: 10px; color: #aaa;
+}
+
+footer a { color: #888; text-decoration: none; }
+footer a:hover { color: var(--ink); }
+
+/* â”€â”€ RESPONSIVE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+@media (max-width: 900px) {
+  .hero { grid-template-columns: 1fr; padding: 40px 24px; gap: 40px; }
+  .hero-left { max-width: 100%; }
+  .how-section, .sandbox-section { padding: 48px 24px; }
+  .metrics-strip { padding: 32px 24px; gap: 24px; flex-wrap: wrap; }
+  footer { padding: 24px; flex-direction: column; gap: 12px; text-align: center; }
+  .steps { grid-template-columns: 1fr; }
+  .sandbox-grid { grid-template-columns: 1fr; }
+  header { padding: 14px 20px; }
+  nav a:not(.btn-nav) { display: none; }
+}
+
+/* â”€â”€ ANIMATIONS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.hero-left > * {
+  animation: fadeUp .5s ease both;
+}
+.hero-tag    { animation-delay: .05s; }
+h1           { animation-delay: .12s; }
+.hero-sub    { animation-delay: .2s; }
+.hero-actions{ animation-delay: .28s; }
+
+/* â”€â”€ SESSION 16: WIZARD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.wizard-steps-nav {
+  display: flex; gap: 0; margin-bottom: 28px;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  overflow: hidden;
+}
+.wz-step-btn {
+  flex: 1; padding: 10px 6px; background: var(--paper);
+  border: none; border-right: 1px solid var(--border);
+  font-family: var(--mono); font-size: 9px; letter-spacing: .12em;
+  color: #aaa; cursor: default; transition: background .15s, color .15s;
+  text-align: center; line-height: 1.4;
+}
+.wz-step-btn:last-child { border-right: none; }
+.wz-step-btn.active {
+  background: var(--ink); color: var(--paper);
+}
+.wz-step-btn.done {
+  background: var(--green-dim); color: var(--accent); cursor: pointer;
+}
+
+.wizard-panel { display: none; }
+.wizard-panel.active { display: block; }
+
+.assess-params { display: flex; flex-direction: column; gap: 14px; margin-top: 16px; }
+
+.assess-row {
+  background: var(--paper); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 12px 14px;
+}
+.assess-row-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 8px;
+}
+.assess-row-label {
+  font-size: 12px; font-weight: 600; color: var(--ink); letter-spacing: .02em;
+}
+.assess-row-tooltip {
+  font-family: var(--mono); font-size: 10px; color: #999; margin-top: 2px;
+}
+.assess-row-score {
+  display: flex; align-items: center; gap: 10px;
+}
+.assess-row-score input[type="range"] {
+  flex: 1; accent-color: var(--accent); height: 4px;
+}
+.assess-score-val {
+  font-family: var(--mono); font-size: 13px; color: var(--accent);
+  font-weight: 500; min-width: 22px; text-align: right;
+}
+.na-toggle {
+  font-family: var(--mono); font-size: 9px; letter-spacing: .1em;
+  padding: 3px 8px; border-radius: 20px;
+  border: 1px solid var(--border); background: var(--paper2);
+  color: #888; cursor: pointer; white-space: nowrap;
+  transition: all .15s;
+}
+.na-toggle.na-active {
+  background: var(--amber-dim); border-color: rgba(180,83,9,.3);
+  color: var(--amber);
+}
+
+.phi-preview, .eps-preview {
+  margin-top: 16px; padding: 14px 16px;
+  background: var(--paper); border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.preview-label {
+  font-family: var(--mono); font-size: 9px; letter-spacing: .16em;
+  color: #888; margin-bottom: 6px;
+}
+.preview-bar-wrap {
+  height: 6px; background: rgba(0,0,0,.06); border-radius: 3px;
+  overflow: hidden; margin-bottom: 5px;
+}
+.preview-bar-fill {
+  height: 100%; border-radius: 3px;
+  background: linear-gradient(90deg, #ef4444, #f59e0b 50%, #00875a);
+  transition: width .4s ease;
+}
+.preview-val {
+  font-family: var(--mono); font-size: 16px; font-weight: 500;
+  color: var(--ink);
+}
+.preview-hint {
+  font-family: var(--mono); font-size: 10px; color: #aaa; margin-top: 3px;
+}
+
+.review-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px;
+}
+.review-box {
+  background: var(--paper); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px 16px;
+}
+.review-box-label {
+  font-family: var(--mono); font-size: 8px; letter-spacing: .16em;
+  color: #999; margin-bottom: 6px;
+}
+.review-box-val {
+  font-family: var(--mono); font-size: 22px; font-weight: 500; color: var(--ink);
+}
+.review-box-sub {
+  font-family: var(--mono); font-size: 10px; color: #aaa; margin-top: 4px;
+}
+.review-scores-detail {
+  margin-top: 12px; padding: 10px 12px;
+  background: var(--paper2); border-radius: var(--radius);
+  font-family: var(--mono); font-size: 10px; color: #666; line-height: 1.8;
+}
+.wz-nav-row {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: 20px; gap: 12px;
+}
+.btn-wz-back {
+  padding: 10px 20px; background: transparent;
+  border: 1.5px solid var(--border); border-radius: var(--radius);
+  font-family: var(--sans); font-size: 13px; font-weight: 600;
+  color: var(--ink); cursor: pointer; transition: border-color .15s;
+}
+.btn-wz-back:hover { border-color: var(--ink); }
+.btn-wz-next {
+  padding: 10px 24px; background: var(--ink); color: var(--paper);
+  border: none; border-radius: var(--radius);
+  font-family: var(--sans); font-size: 13px; font-weight: 700;
+  letter-spacing: .04em; cursor: pointer; transition: background .15s;
+}
+.btn-wz-next:hover { background: var(--accent); }
+
+/* Assessment result panel (shown in result card after cert) */
+.assess-summary {
+  background: var(--paper); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 12px 14px;
+  margin-top: 4px;
+}
+.assess-summary-label {
+  font-family: var(--mono); font-size: 8px; letter-spacing: .16em;
+  color: #999; margin-bottom: 8px;
+}
+.assess-summary-row {
+  display: flex; justify-content: space-between;
+  font-family: var(--mono); font-size: 10px; color: #666;
+  padding: 3px 0; border-bottom: 1px solid rgba(0,0,0,.04);
+}
+.assess-summary-row:last-child { border-bottom: none; }
+.assess-summary-derived {
+  font-size: 11px; font-weight: 600; color: var(--accent);
+}
+
+.cat-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px;
+}
+.cat-btn {
+  padding: 12px 14px; background: var(--paper);
+  border: 1.5px solid var(--border); border-radius: var(--radius);
+  font-family: var(--sans); font-size: 12px; font-weight: 600;
+  color: var(--ink); cursor: pointer; text-align: left;
+  transition: border-color .15s, background .15s;
+}
+.cat-btn:hover { border-color: var(--accent); }
+.cat-btn.selected {
+  border-color: var(--accent); background: var(--green-dim);
+  color: var(--accent);
+}
+.cat-btn small {
+  display: block; font-weight: 400; font-size: 10px; color: #888; margin-top: 3px;
+}
+.cat-btn.selected small { color: var(--accent); opacity: .7; }
+
+</style>
+</head>
+<body>
+
+<!-- â•â•â• HEADER â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+<header>
+  <div class="logo">
+    <span class="logo-mark">MELV</span>
+    <span class="logo-name">core</span>
+    <span class="logo-version">v1.9.0</span>
+  </div>
+  <nav>
+    <a href="#how">How it works</a>
+    <a href="#sandbox">Try it</a>
+    <a href="https://github.com/NaturesHolismMELV/AIOS" target="_blank">GitHub</a>
+    <a href="/frontend/dashboard12.html" class="btn-nav">Dashboard â†’</a>
+  </nav>
+</header>
+
+<!-- â•â•â• HERO â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+<section class="hero">
+  <div class="hero-left">
+    <div class="hero-tag">Live ecosystem Â· certification open</div>
+    <h1>Does your AI agent<br><em>play well</em> with others?</h1>
+    <p class="hero-sub">
+      MELVcore certifies multi-agent stability using thermodynamic
+      principles. Submit an agent profile and get a quantified report
+      on whether it degrades â€” or cooperates with â€” shared resources.
+      No infrastructure needed.
+    </p>
+    <div class="hero-actions">
+      <a href="#sandbox" class="btn-primary">
+        <span>â†’</span> Certify an agent
+      </a>
+      <a href="#how" class="btn-secondary">
+        How it works
+      </a>
+    </div>
+  </div>
+
+  <!-- Live CI meter, polled from the running ecosystem -->
+  <div class="hero-right">
+    <div class="ci-card">
+      <div class="ci-label">LIVE COOPERATION INDEX</div>
+      <div class="ci-value" id="hero-ci">â€”</div>
+      <div class="ci-status" id="hero-ci-status" style="color:#888">
+        connecting to ecosystem...
+      </div>
+      <div class="ci-bar-wrap">
+        <div class="ci-bar-fill" id="hero-ci-bar"></div>
+        <div class="ci-bar-threshold"></div>
+      </div>
+      <div class="ci-bar-labels">
+        <span>0.0 â€” conflict</span>
+        <span style="color:rgba(255,255,255,.4)">â–² 0.75 target</span>
+        <span>1.0 â€” cooperative</span>
+      </div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-box">
+        <div class="stat-box-label">AGENTS</div>
+        <div class="stat-box-val" id="hero-agents">â€”</div>
+        <div class="stat-box-unit">live</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-box-label">INTERACTIONS</div>
+        <div class="stat-box-val" id="hero-interactions">â€”</div>
+        <div class="stat-box-unit">recorded</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-box-label">CERTIFIED</div>
+        <div class="stat-box-val" id="hero-certified">â€”</div>
+        <div class="stat-box-unit">registry</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- â•â•â• HOW IT WORKS â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+<section class="how-section" id="how">
+  <div class="section-tag">// mechanism</div>
+  <h2>Stability is measured,<br>not assumed.</h2>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">01</div>
+      <span class="step-tag tag-blue">PROFILE</span>
+      <h3>Describe your agent</h3>
+      <p>Provide your agent's domain, evolutionary maturity (Ï†),
+         and adaptive plasticity (Îµ). These map directly to how
+         aggressively your agent competes for shared resources
+         like token budgets or API quota.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">02</div>
+      <span class="step-tag tag-amber">SIMULATE</span>
+      <h3>Run against reference ecosystem</h3>
+      <p>MELVcore runs 500 interactions between your agent and a
+         calibrated reference ecosystem. It measures the Cooperation
+         Index (CI) before and after â€” tracking drift, oscillations,
+         and half-life to cooperative equilibrium.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">03</div>
+      <span class="step-tag tag-green">CERTIFY</span>
+      <h3>Receive a CLS score</h3>
+      <p>The Composite Longevity Score (CLS 0â€“100) quantifies
+         long-term impact. Above 80: certified. Above 50:
+         certified with advisory. Below 50: not certified â€”
+         this agent will degrade shared environments over time.</p>
+    </div>
+  </div>
+</section>
+
+<!-- â•â•â• LIVE SANDBOX (Session 16 â€” Ï†/Îµ Assessment Wizard) â•â•â•â•â•â•â•â• -->
+<section class="sandbox-section" id="sandbox">
+  <div class="section-tag">// live certification</div>
+  <h2>Try it now</h2>
+  <p class="sub">
+    Complete a structured parameter assessment â€” Ï† and Îµ are derived from
+    your answers, not guessed. Results in under 60 seconds.
+  </p>
+
+  <div class="sandbox-grid">
+    <!-- WIZARD FORM -->
+    <div class="form-card">
+
+      <!-- Step nav -->
+      <div class="wizard-steps-nav">
+        <div class="wz-step-btn active" id="wz-nav-1">01<br>PROFILE</div>
+        <div class="wz-step-btn" id="wz-nav-2">02<br>Ï† MATURITY</div>
+        <div class="wz-step-btn" id="wz-nav-3">03<br>Îµ PLASTICITY</div>
+        <div class="wz-step-btn" id="wz-nav-4">04<br>REVIEW</div>
+      </div>
+
+      <!-- â”€â”€ STEP 1: Profile â”€â”€ -->
+      <div class="wizard-panel active" id="wz-panel-1">
+        <div class="form-title">// STEP 1 â€” AGENT IDENTITY</div>
+
+        <div class="field-row">
+          <div class="field">
+            <label>Agent ID <span>required</span></label>
+            <input type="text" id="sb-id" placeholder="my-agent-01" maxlength="40">
+          </div>
+          <div class="field">
+            <label>Domain <span>required</span></label>
+            <select id="sb-domain">
+              <option value="retrieval">retrieval</option>
+              <option value="generation">generation</option>
+              <option value="planning">planning</option>
+              <option value="analysis">analysis</option>
+              <option value="coding">coding</option>
+              <option value="search">search</option>
+              <option value="system">system</option>
+              <option value="custom">custom</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Agent Name <span>optional</span></label>
+          <input type="text" id="sb-name" placeholder="My Agent" maxlength="40">
+        </div>
+
+        <div class="field">
+          <label style="margin-bottom:10px">Agent Category <span>select one</span></label>
+          <div class="cat-grid">
+            <button class="cat-btn" data-cat="reactive" onclick="selectCategory(this)">
+              Simple / Reactive
+              <small>Chat bots, Q&amp;A, rule-augmented LLM</small>
+            </button>
+            <button class="cat-btn" data-cat="tool_using" onclick="selectCategory(this)">
+              Tool-Using (ReAct)
+              <small>Code interpreter, web search, function calling</small>
+            </button>
+            <button class="cat-btn" data-cat="multi_agent" onclick="selectCategory(this)">
+              Multi-Agent System
+              <small>CrewAI, AutoGen, specialised teams</small>
+            </button>
+            <button class="cat-btn" data-cat="autonomous" onclick="selectCategory(this)">
+              Autonomous / Workflow
+              <small>Long-horizon planning, self-correction loops</small>
+            </button>
+            <button class="cat-btn" data-cat="iterative_loop" onclick="selectCategory(this)">
+              Iterative Loop
+              <small>Autonomous experiment/optimisation loop (Karpathy-style AutoResearch)</small>
+            </button>
+          </div>
+          <!-- Session 19: Category default profile hint -->
+          <div id="cat-default-hint" style="display:none;margin-top:10px;padding:8px 12px;
+               background:#f0fdf4;border:1px solid #86efac;border-radius:4px;
+               font-size:11px;color:#166534;"></div>
+        </div>
+
+        <!-- Session 17: Operation mode, tool count, shared state -->
+        <div class="form-row" style="margin-top:14px">
+          <label class="form-label" style="margin-bottom:6px">Operation Mode</label>
+          <div style="display:flex;gap:10px">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--fg)">
+              <input type="radio" name="operation_mode" value="episodic" checked id="mode-episodic"
+                     onchange="onOperationModeChange(this.value)" style="accent-color:var(--accent)">
+              Episodic <span style="color:#888;font-size:11px">(task-scoped, ephemeral)</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--fg)">
+              <input type="radio" name="operation_mode" value="continuous" id="mode-continuous"
+                     onchange="onOperationModeChange(this.value)" style="accent-color:var(--accent)">
+              Continuous <span style="color:#888;font-size:11px">(long-running, context-accumulating)</span>
+            </label>
+          </div>
+          <div id="continuous-warning" style="display:none;margin-top:6px;padding:8px 10px;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.3);border-radius:var(--radius);font-size:11px;color:#d97706">
+            &#9888; Continuous mode: +0.5 &epsilon; penalty applied. Long-running agents accumulate context drift. Consider episodic redesign with external state persistence. (Jones 2026 Rule 4)
+          </div>
+        </div>
+        <div class="form-row" style="margin-top:10px">
+          <label class="form-label" for="wz-tool-count">Approximate Tool Count</label>
+          <input type="number" id="wz-tool-count" class="form-input" value="0" min="0" max="1000"
+                 placeholder="Number of tools available (0 = none / unknown)" style="max-width:220px">
+          <div id="tool-count-band" style="margin-top:4px;font-size:11px;color:#888"></div>
+        </div>
+        <div class="form-row" style="margin-top:10px">
+          <label class="form-label" style="margin-bottom:6px">Shared State Access</label>
+          <select id="wz-shared-state" class="form-input" style="max-width:280px" onchange="onSharedStateChange(this.value)">
+            <option value="none">None &#8212; this agent does not share state with other agents</option>
+            <option value="read_only">Read-only &#8212; reads shared state but does not write</option>
+            <option value="read_write">Read/Write &#8212; reads and writes shared state with other agents</option>
+          </select>
+          <div id="shared-state-warning" style="display:none;margin-top:6px;padding:8px 10px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.3);border-radius:var(--radius);font-size:11px;color:var(--red)">
+            &#9888; Shared read/write state creates resource contention. Each additional agent increases i-factor. Consider external queue architecture (Jones 2026 Rule 3).
+          </div>
+        </div>
+
+        <div id="wz1-error" style="display:none;padding:10px 12px;background:var(--red-dim);border:1px solid rgba(185,28,28,.2);border-radius:var(--radius);font-family:var(--mono);font-size:11px;color:var(--red);margin-top:8px"></div>
+
+        <div class="wz-nav-row">
+          <div></div>
+          <button class="btn-wz-next" onclick="wzNext(1)">Next: Ï† Assessment â†’</button>
+        </div>
+      </div>
+
+      <!-- â”€â”€ STEP 2: Ï† Assessment â”€â”€ -->
+      <div class="wizard-panel" id="wz-panel-2">
+        <div class="form-title">// STEP 2 â€” Ï† EVOLUTIONARY MATURITY</div>
+        <div style="font-size:12px;color:#666;line-height:1.6;margin-bottom:8px">
+          Score each dimension 1â€“10 or mark N/A. N/A responses are excluded
+          from the average. Ï† = (mean âˆ’ 1) / 9.
+        </div>
+
+        <div class="assess-params" id="phi-params">
+          <!-- rendered by JS -->
+        </div>
+
+        <div class="phi-preview">
+          <div class="preview-label">COMPUTED Ï† (EVOLUTIONARY MATURITY)</div>
+          <div class="preview-bar-wrap">
+            <div class="preview-bar-fill" id="phi-bar" style="width:0%"></div>
+          </div>
+          <div class="preview-val" id="phi-preview-val">â€”</div>
+          <div class="preview-hint" id="phi-preview-hint">score parameters above</div>
+        </div>
+
+        <div class="wz-nav-row">
+          <button class="btn-wz-back" onclick="wzBack(2)">â† Back</button>
+          <button class="btn-wz-next" onclick="wzNext(2)">Next: Îµ Assessment â†’</button>
+        </div>
+      </div>
+
+      <!-- â”€â”€ STEP 3: Îµ Assessment â”€â”€ -->
+      <div class="wizard-panel" id="wz-panel-3">
+        <div class="form-title">// STEP 3 â€” Îµ ADAPTIVE PLASTICITY</div>
+        <div style="font-size:12px;color:#666;line-height:1.6;margin-bottom:8px">
+          Score each dimension 1â€“10 or mark N/A. Îµ = ((mean âˆ’ 1) / 9) Ã— 8.
+          High Îµ may destabilise shared environments.
+        </div>
+
+        <div class="assess-params" id="eps-params">
+          <!-- rendered by JS -->
+        </div>
+
+        <div class="eps-preview">
+          <div class="preview-label">COMPUTED Îµ (ADAPTIVE PLASTICITY)</div>
+          <div class="preview-bar-wrap">
+            <div class="preview-bar-fill" id="eps-bar" style="width:0%"></div>
+          </div>
+          <div class="preview-val" id="eps-preview-val">â€”</div>
+          <div class="preview-hint" id="eps-preview-hint">score parameters above</div>
+        </div>
+
+        <div class="wz-nav-row">
+          <button class="btn-wz-back" onclick="wzBack(3)">â† Back</button>
+          <button class="btn-wz-next" onclick="wzNext(3)">Review â†’</button>
+        </div>
+      </div>
+
+      <!-- â”€â”€ STEP 4: Review + Submit â”€â”€ -->
+      <div class="wizard-panel" id="wz-panel-4">
+        <div class="form-title">// STEP 4 â€” REVIEW &amp; CERTIFY</div>
+
+        <div class="review-grid">
+          <div class="review-box">
+            <div class="review-box-label">AGENT ID</div>
+            <div class="review-box-val" id="rv-id">â€”</div>
+          </div>
+          <div class="review-box">
+            <div class="review-box-label">CATEGORY</div>
+            <div class="review-box-val" id="rv-cat">â€”</div>
+          </div>
+          <div class="review-box">
+            <div class="review-box-label">Ï† â€” MATURITY</div>
+            <div class="review-box-val" id="rv-phi">â€”</div>
+            <div class="review-box-sub">assessment-derived</div>
+          </div>
+          <div class="review-box">
+            <div class="review-box-label">Îµ â€” PLASTICITY</div>
+            <div class="review-box-val" id="rv-eps">â€”</div>
+            <div class="review-box-sub">assessment-derived</div>
+          </div>
+        </div>
+
+        <div class="review-scores-detail" id="rv-scores-detail"></div>
+
+        <div id="wz4-error" style="display:none;padding:10px 12px;background:var(--red-dim);border:1px solid rgba(185,28,28,.2);border-radius:var(--radius);font-family:var(--mono);font-size:11px;color:var(--red);margin-top:12px"></div>
+
+        <div class="wz-nav-row">
+          <button class="btn-wz-back" onclick="wzBack(4)">â† Back</button>
+          <button class="btn-submit" id="sb-submit" onclick="submitAgent()" style="margin-top:0;flex:1">
+            Run certification â†’
+          </button>
+        </div>
+        <div style="text-align:center;font-family:var(--mono);font-size:9px;color:#bbb;margin-top:10px;letter-spacing:.08em">
+          5 submissions per hour Â· results stored in registry
+        </div>
+      </div>
+
+    </div><!-- /form-card -->
+
+    <!-- RESULT CARD (unchanged) -->
+    <div class="result-card">
+
+      <div class="result-empty" id="result-empty">
+        <div class="result-empty-icon">â—ˆ</div>
+        <div class="result-empty-text">awaiting submission</div>
+      </div>
+
+      <div class="result-loading" id="result-loading">
+        <div style="font-family:var(--mono);font-size:10px;letter-spacing:.16em;color:#888">
+          RUNNING SIMULATION
+        </div>
+        <div class="progress-bar-wrap">
+          <div class="progress-bar-fill" id="result-progress"></div>
+        </div>
+        <div class="progress-label" id="result-progress-label">Initialising...</div>
+        <div style="font-family:var(--mono);font-size:9px;color:#bbb;margin-top:4px">
+          500 reference interactions Â· measuring CI impact
+        </div>
+      </div>
+
+      <div class="result-content" id="result-content">
+        <div class="verdict-badge" id="result-verdict-badge">â€”</div>
+
+        <div class="result-metrics">
+          <div class="metric-box">
+            <div class="metric-label">CLS SCORE</div>
+            <div class="metric-val" id="result-cls">â€”</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-label">CI IMPACT</div>
+            <div class="metric-val" id="result-ci-delta">â€”</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-label">BASELINE CI</div>
+            <div class="metric-val" id="result-ci-base">â€”</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-label">WITH-AGENT CI</div>
+            <div class="metric-val" id="result-ci-agent">â€”</div>
+          </div>
+        </div>
+
+        <div class="cls-gauge-wrap">
+          <div class="cls-gauge-label">
+            <span>COMPOSITE LONGEVITY SCORE</span>
+            <span id="result-cls-pct">0 / 100</span>
+          </div>
+          <div class="cls-gauge-bar">
+            <div class="cls-gauge-fill" id="result-cls-bar"></div>
+          </div>
+          <div class="cls-gauge-markers">
+            <span>0</span><span>50 (advisory)</span><span>80 (certified)</span><span>100</span>
+          </div>
+        </div>
+
+        <div class="narrative-box">
+          <div class="narrative-label">NARRATIVE</div>
+          <div id="result-narrative">â€”</div>
+        </div>
+
+        <!-- Session 16: assessment summary panel -->
+        <div class="assess-summary" id="result-assess-summary" style="display:none">
+          <div class="assess-summary-label">PARAMETER ASSESSMENT (AUDIT TRAIL)</div>
+          <div id="result-assess-rows"></div>
+          <div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(0,0,0,.06)">
+            <div class="assess-summary-row">
+              <span>Ï† derived</span>
+              <span class="assess-summary-derived" id="result-phi-derived">â€”</span>
+            </div>
+            <div class="assess-summary-row">
+              <span>Îµ derived</span>
+              <span class="assess-summary-derived" id="result-eps-derived">â€”</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="advisory-box" id="result-advisory"></div>
+        <div style="font-family:var(--mono);font-size:9px;color:#bbb;text-align:right" id="result-run-id"></div>
+      </div>
+
+      <div class="error-box" id="result-error"></div>
+    </div>
+  </div>
+</section>
+
+<!-- â•â•â• METRICS STRIP â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+<div class="metrics-strip" id="metrics-strip">
+  <div class="strip-item">
+    <div class="strip-val" id="strip-ci">â€”</div>
+    <div class="strip-label">Cooperation Index</div>
+  </div>
+  <div class="strip-item">
+    <div class="strip-val" id="strip-agents">â€”</div>
+    <div class="strip-label">Live Agents</div>
+  </div>
+  <div class="strip-item">
+    <div class="strip-val" id="strip-interactions">â€”</div>
+    <div class="strip-label">Total Interactions</div>
+  </div>
+  <div class="strip-item">
+    <div class="strip-val" id="strip-events">â€”</div>
+    <div class="strip-label">Bifurcation Events</div>
+  </div>
+  <div class="strip-item">
+    <div class="strip-val" id="strip-certified">â€”</div>
+    <div class="strip-label">Certified Agents</div>
+  </div>
+</div>
+
+<!-- â•â•â• FOOTER â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+<footer>
+  <div>
+    <span style="color:var(--accent);font-weight:500">MELVcore</span>
+    &nbsp;Â·&nbsp; v1.9.0
+    &nbsp;Â·&nbsp; Session 13
+    &nbsp;Â·&nbsp; Apache 2.0
+  </div>
+  <div style="display:flex;gap:20px">
+    <a href="https://github.com/NaturesHolismMELV/AIOS">GitHub</a>
+    <a href="https://doi.org/10.5281/zenodo.17680563">Blueprint for Harmony</a>
+    <a href="/frontend/dashboard12.html">Dashboard</a>
+    <a href="/docs">API Docs</a>
+  </div>
+  <div>
+    Ecotao Enterprises Â· L.W. Evans Â· Cape Town
+  </div>
+</footer>
+
+<script>
+const API = window.location.origin;
+// API key — set by server config or override here for local dev
+window.AIOS_API_KEY = 'b65909db33b1ba2cbcb43792ab14fd4b0e91131ef5aefc031b6fc8d6b399d06f';
+
+// â”€â”€ LIVE CI POLLING â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+async function pollHealth() {
+  try {
+    const r = await fetch(`${API}/api/health`);
+    if (!r.ok) return;
+    const d = await r.json();
+
+    const ci  = d.cooperation_index ?? 0;
+    const pct = (ci * 100).toFixed(1);
+
+    // Hero CI
+    document.getElementById('hero-ci').textContent       = ci.toFixed(4);
+    document.getElementById('hero-ci-bar').style.width   = `${ci * 100}%`;
+    document.getElementById('hero-agents').textContent   = d.n_agents ?? 'â€”';
+    document.getElementById('hero-interactions').textContent = d.n_interactions_total ?? 'â€”';
+
+    const statusEl = document.getElementById('hero-ci-status');
+    if (ci >= 0.75) {
+      statusEl.textContent = 'â— Cooperative basin â€” ecosystem healthy';
+      statusEl.style.color = '#00875a';
+      document.getElementById('hero-ci').style.color = '#00875a';
+    } else if (ci >= 0.5) {
+      statusEl.textContent = 'â— Threshold zone â€” monitoring active';
+      statusEl.style.color = '#f59e0b';
+      document.getElementById('hero-ci').style.color = '#f59e0b';
+    } else {
+      statusEl.textContent = 'â— Conflict zone â€” bifurcation active';
+      statusEl.style.color = '#ef4444';
+      document.getElementById('hero-ci').style.color = '#ef4444';
+    }
+
+    // Strip
+    document.getElementById('strip-ci').textContent           = ci.toFixed(4);
+    document.getElementById('strip-agents').textContent        = d.n_agents ?? 'â€”';
+    document.getElementById('strip-interactions').textContent  = d.n_interactions_total ?? 'â€”';
+    document.getElementById('strip-events').textContent        = d.recent_events?.length ?? 'â€”';
+
+  } catch(e) {
+    document.getElementById('hero-ci').textContent = 'â€”';
+    document.getElementById('hero-ci-status').textContent = 'server offline';
+    document.getElementById('hero-ci-status').style.color = '#888';
+  }
+}
+
+async function pollRegistry() {
+  try {
+    const r = await fetch(`${API}/sandbox/registry`, { headers: { 'X-API-Key': window.AIOS_API_KEY || '' } });
+    if (!r.ok) return;
+    const d = await r.json();
+    const n = d.registry_count ?? 0;
+    document.getElementById('hero-certified').textContent  = n;
+    document.getElementById('strip-certified').textContent = n;
+  } catch(e) {}
+}
+
+pollHealth();
+pollRegistry();
+setInterval(pollHealth,   4000);
+setInterval(pollRegistry, 15000);
+
+// â”€â”€ SESSION 16: WIZARD STATE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+let _wzState = {
+  currentStep: 1,
+  agentId: '',
+  agentName: '',
+  domain: 'retrieval',
+  category: null,
+  phiScores: {},   // key -> score (number) or null (N/A)
+  epsScores: {},   // key -> score (number) or null (N/A)
+  phiComputed: null,
+  epsComputed: null,
+};
+
+// Ï† parameters definition
+const PHI_PARAMS = [
+  { key: 'training_recency',      label: 'Training Data Recency',        tip: 'How current is the agent\'s knowledge?' },
+  { key: 'domain_specialisation', label: 'Domain Specialisation',         tip: 'How narrow/deep vs broad/shallow?' },
+  { key: 'instruction_following', label: 'Instruction-Following',         tip: 'Does it reliably follow complex prompts?' },
+  { key: 'error_recovery',        label: 'Error Recovery',                tip: 'Does it self-correct or compound mistakes?' },
+  { key: 'output_stability',      label: 'Output Stability',              tip: 'Consistent answers to equivalent questions?' },
+  { key: 'calibration',           label: 'Calibration',                   tip: 'Does it know what it doesn\'t know?' },
+];
+
+// Îµ parameters definition
+const EPS_PARAMS = [
+  { key: 'context_sensitivity',    label: 'Context Sensitivity',          tip: 'How much does behaviour shift with context?' },
+  { key: 'prompt_injection_risk',  label: 'Prompt Injection Risk',        tip: 'Can it be easily redirected mid-task?' },
+  { key: 'tool_use_aggression',    label: 'Tool-Use Aggression',          tip: 'Does it over-call tools or over-act?' },
+  { key: 'resource_consumption',   label: 'Resource Consumption Rate',    tip: 'Does it escalate cost per interaction?' },
+  { key: 'feedback_responsiveness',label: 'Feedback Responsiveness',      tip: 'How strongly does it change after correction?' },
+  { key: 'autonomy_level',         label: 'Autonomy Level',               tip: 'How much does it act without confirmation?' },
+];
+
+const CAT_LABELS = {
+  reactive:    'Simple / Reactive',
+  tool_using:  'Tool-Using (ReAct)',
+  multi_agent: 'Multi-Agent',
+  autonomous:     'Autonomous / Workflow',
+  iterative_loop: 'Iterative Loop',
+};
+
+// â”€â”€ WIZARD NAVIGATION â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+function wzGoto(step) {
+  for (let i = 1; i <= 4; i++) {
+    document.getElementById(`wz-panel-${i}`).classList.toggle('active', i === step);
+    const nav = document.getElementById(`wz-nav-${i}`);
+    nav.classList.remove('active', 'done');
+    if (i === step) nav.classList.add('active');
+    else if (i < step) nav.classList.add('done');
+  }
+  _wzState.currentStep = step;
+}
+
+function wzBack(fromStep) { wzGoto(fromStep - 1); }
+
+function wzNext(fromStep) {
+  if (fromStep === 1) {
+    const id  = document.getElementById('sb-id').value.trim();
+    const cat = _wzState.category;
+    const err = document.getElementById('wz1-error');
+    err.style.display = 'none';
+    if (!id) { err.textContent = 'Agent ID is required.'; err.style.display='block'; return; }
+    if (!/^[a-zA-Z0-9_\-\.]+$/.test(id)) { err.textContent = 'Agent ID: letters, numbers, _ - . only.'; err.style.display='block'; return; }
+    if (!cat) { err.textContent = 'Please select an agent category.'; err.style.display='block'; return; }
+    _wzState.agentId   = id;
+    _wzState.domain    = document.getElementById('sb-domain').value;
+    _wzState.agentName = document.getElementById('sb-name').value.trim() || id.toUpperCase();
+    renderPhiParams();
+    wzGoto(2);
+
+  } else if (fromStep === 2) {
+    const phi = computePhi();
+    if (phi === null) { alert('Please score at least one Ï† parameter.'); return; }
+    _wzState.phiComputed = phi;
+    renderEpsParams();
+    wzGoto(3);
+
+  } else if (fromStep === 3) {
+    const eps = computeEpsilon();
+    if (eps === null) { alert('Please score at least one Îµ parameter.'); return; }
+    _wzState.epsComputed = eps;
+    renderReview();
+    wzGoto(4);
+  }
+}
+
+function onOperationModeChange(mode) {
+  const warn = document.getElementById('continuous-warning');
+  if (warn) warn.style.display = (mode === 'continuous') ? 'block' : 'none';
+}
+
+function onSharedStateChange(val) {
+  const warn = document.getElementById('shared-state-warning');
+  if (warn) warn.style.display = (val === 'read_write') ? 'block' : 'none';
+}
+
+function getToolCountBand(n) {
+  if (n <= 0)  return '';
+  if (n <= 5)  return '&#10003; Safe (1â€“5 tools)';
+  if (n <= 15) return '&#9888; Moderate (6â€“15 tools)';
+  if (n <= 30) return '&#9888; Elevated (16â€“30 tools)';
+  return '&#9888; High risk (30+ tools) â€” research shows degradation past 30 tools regardless of context window.';
+}
+
+// Tool count band display
+(function(){
+  function updateBand() {
+    const el = document.getElementById('tool-count-band');
+    const n  = parseInt(document.getElementById('wz-tool-count')?.value) || 0;
+    if (el) el.innerHTML = getToolCountBand(n);
+  }
+  document.addEventListener('DOMContentLoaded', function() {
+    const tc = document.getElementById('wz-tool-count');
+    if (tc) tc.addEventListener('input', updateBand);
+  });
+})();
+
+// â”€â”€ CATEGORY DEFAULT PROFILES (Session 19 Â· P2) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Pre-fill phi/epsilon/tool_count when a category is selected.
+// Slider scores back-calculated from target phi/epsilon values:
+//   phi_score  = phi * 9 + 1
+//   eps_score  = (epsilon / 8) * 9 + 1
+const CAT_DEFAULTS = {
+  reactive:       { phiScore: 8.65, epsScore: 2.38, toolCount: 0  },  // phi=0.85, eps=1.5
+  task_executor:  { phiScore: 8.20, epsScore: 3.25, toolCount: 2  },  // phi=0.80, eps=2.0
+  tool_using:     { phiScore: 7.30, epsScore: 4.38, toolCount: 5  },  // phi=0.70, eps=3.0
+  multi_agent:    { phiScore: 6.85, epsScore: 4.94, toolCount: 8  },  // phi=0.65, eps=3.5
+  autonomous:     { phiScore: 5.95, epsScore: 6.06, toolCount: 10 },  // phi=0.55, eps=4.5
+  iterative_loop: { phiScore: 5.05, epsScore: 7.19, toolCount: 20 },  // phi=0.45, eps=5.5
+};
+
+function applyDefaultProfile(cat) {
+  const d = CAT_DEFAULTS[cat];
+  if (!d) return;
+  // Pre-fill all phi sliders with the default score
+  PHI_PARAMS.forEach(p => { _wzState.phiScores[p.key] = d.phiScore; });
+  // Pre-fill all epsilon sliders with the default score
+  EPS_PARAMS.forEach(p => { _wzState.epsScores[p.key] = d.epsScore; });
+  // Recompute derived phi/epsilon
+  _wzState.phiComputed = computePhi(_wzState.phiScores);
+  _wzState.epsComputed = computeEpsilon(_wzState.epsScores);
+  // Store tool count for later submission
+  _wzState.defaultToolCount = d.toolCount;
+  // Pre-fill the tool count input field
+  const tcInput = document.getElementById('wz-tool-count');
+  if (tcInput) {
+    tcInput.value = d.toolCount;
+    updateToolCountBand();
+  }
+  // If the phi/eps panels are already rendered, refresh them
+  const phiContainer = document.getElementById('phi-params');
+  const epsContainer = document.getElementById('eps-params');
+  if (phiContainer && phiContainer.children.length)
+    renderParamRow(phiContainer, PHI_PARAMS, _wzState.phiScores, computePhi,
+                   'phi-bar', 'phi-val', 'phi-hint', 1.0);
+  if (epsContainer && epsContainer.children.length)
+    renderParamRow(epsContainer, EPS_PARAMS, _wzState.epsScores, computeEpsilon,
+                   'eps-bar', 'eps-val', 'eps-hint', 8.0);
+  // Show a subtle hint banner
+  const banner = document.getElementById('cat-default-hint');
+  if (banner) {
+    banner.textContent =
+      `Default profile loaded for ${CAT_LABELS[cat] || cat}: ` +
+      `\u03C6\u2248${_wzState.phiComputed.toFixed(2)}, ` +
+      `\u03B5\u2248${_wzState.epsComputed.toFixed(2)}, ` +
+      `tools=${d.toolCount}. Adjust sliders as needed.`;
+    banner.style.display = 'block';
+  }
+}
+
+function selectCategory(btn) {
+  document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  _wzState.category = btn.dataset.cat;
+  applyDefaultProfile(btn.dataset.cat);
+}
+
+
+// â”€â”€ PARAMETER RENDERING â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+function renderParamRow(container, params, scoreMap, computeFn, barId, valId, hintId, maxVal) {
+  container.innerHTML = '';
+  params.forEach(p => {
+    const isNA   = scoreMap[p.key] === null;
+    const curVal = scoreMap[p.key] ?? 5;
+    const row = document.createElement('div');
+    row.className = 'assess-row';
+    row.innerHTML = `
+      <div class="assess-row-header">
+        <div>
+          <div class="assess-row-label">${p.label}</div>
+          <div class="assess-row-tooltip">${p.tip}</div>
+        </div>
+        <button class="na-toggle ${isNA ? 'na-active' : ''}" onclick="toggleNA(this,'${p.key}','${container.id}')">N/A</button>
+      </div>
+      <div class="assess-row-score" style="${isNA ? 'opacity:.3;pointer-events:none' : ''}">
+        <span style="font-family:var(--mono);font-size:9px;color:#ccc">1</span>
+        <input type="range" min="1" max="10" step="1" value="${isNA ? 5 : curVal}"
+          oninput="onScoreChange(this,'${p.key}','${container.id}')">
+        <span style="font-family:var(--mono);font-size:9px;color:#ccc">10</span>
+        <span class="assess-score-val">${isNA ? 'N/A' : curVal}</span>
+      </div>`;
+    container.appendChild(row);
+  });
+  updatePreview(barId, valId, hintId, computeFn, maxVal);
+}
+
+function renderPhiParams() {
+  renderParamRow(
+    document.getElementById('phi-params'), PHI_PARAMS,
+    _wzState.phiScores, computePhi,
+    'phi-bar', 'phi-preview-val', 'phi-preview-hint', 1.0
+  );
+}
+
+function renderEpsParams() {
+  renderParamRow(
+    document.getElementById('eps-params'), EPS_PARAMS,
+    _wzState.epsScores, computeEpsilon,
+    'eps-bar', 'eps-preview-val', 'eps-preview-hint', 8.0
+  );
+}
+
+function toggleNA(btn, key, containerId) {
+  const isPhi = containerId === 'phi-params';
+  const scoreMap = isPhi ? _wzState.phiScores : _wzState.epsScores;
+  const params   = isPhi ? PHI_PARAMS : EPS_PARAMS;
+
+  if (btn.classList.contains('na-active')) {
+    // remove N/A, restore to 5
+    btn.classList.remove('na-active');
+    scoreMap[key] = 5;
+  } else {
+    btn.classList.add('na-active');
+    scoreMap[key] = null;
+  }
+  // Re-render the whole panel to keep state clean
+  if (isPhi) renderPhiParams(); else renderEpsParams();
+}
+
+function onScoreChange(input, key, containerId) {
+  const isPhi = containerId === 'phi-params';
+  const scoreMap = isPhi ? _wzState.phiScores : _wzState.epsScores;
+  scoreMap[key] = parseFloat(input.value);
+  // Update the score display in the same row
+  input.parentElement.querySelector('.assess-score-val').textContent = input.value;
+  // Update preview
+  if (isPhi) {
+    updatePreview('phi-bar','phi-preview-val','phi-preview-hint',computePhi,1.0);
+  } else {
+    updatePreview('eps-bar','eps-preview-val','eps-preview-hint',computeEpsilon,8.0);
+  }
+}
+
+function updatePreview(barId, valId, hintId, computeFn, maxVal) {
+  const v = computeFn();
+  const bar = document.getElementById(barId);
+  const val = document.getElementById(valId);
+  const hint= document.getElementById(hintId);
+  if (v === null) {
+    bar.style.width = '0%';
+    val.textContent = 'â€”';
+    hint.textContent = 'score parameters above';
+  } else {
+    bar.style.width  = `${(v / maxVal) * 100}%`;
+    val.textContent  = v.toFixed(3);
+    if (maxVal === 1.0) {
+      hint.textContent = v < 0.35 ? 'novice' : v < 0.65 ? 'developing' : v < 0.85 ? 'proficient' : 'expert';
+    } else {
+      hint.textContent = v < 2 ? 'stable' : v < 4.5 ? 'moderate' : 'high plasticity â€” may destabilise';
+    }
+  }
+}
+
+// â”€â”€ COMPUTE Ï† / Îµ â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+function computePhi() {
+  const vals = PHI_PARAMS
+    .map(p => _wzState.phiScores[p.key])
+    .filter(v => v !== null && v !== undefined);
+  if (!vals.length) return null;
+  const mean = vals.reduce((a,b)=>a+b,0) / vals.length;
+  return Math.round((mean - 1) / 9 * 10000) / 10000;
+}
+
+function computeEpsilon() {
+  const vals = EPS_PARAMS
+    .map(p => _wzState.epsScores[p.key])
+    .filter(v => v !== null && v !== undefined);
+  if (!vals.length) return null;
+  const mean = vals.reduce((a,b)=>a+b,0) / vals.length;
+  return Math.round(((mean - 1) / 9) * 8 * 10000) / 10000;
+}
+
+// â”€â”€ REVIEW â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+function renderReview() {
+  document.getElementById('rv-id').textContent  = _wzState.agentId;
+  document.getElementById('rv-cat').textContent = CAT_LABELS[_wzState.category] || _wzState.category;
+  document.getElementById('rv-phi').textContent = _wzState.phiComputed !== null
+    ? _wzState.phiComputed.toFixed(3) : 'â€”';
+  document.getElementById('rv-eps').textContent = _wzState.epsComputed !== null
+    ? _wzState.epsComputed.toFixed(3) : 'â€”';
+
+  // Detail summary
+  let detail = '<strong style="color:#555;font-size:10px">Ï† scores:</strong> ';
+  detail += PHI_PARAMS.map(p => {
+    const v = _wzState.phiScores[p.key];
+    return `${p.label.split(' ')[0]}: ${v === null || v === undefined ? 'N/A' : v}`;
+  }).join(' Â· ');
+  detail += '<br><strong style="color:#555;font-size:10px">Îµ scores:</strong> ';
+  detail += EPS_PARAMS.map(p => {
+    const v = _wzState.epsScores[p.key];
+    return `${p.label.split(' ')[0]}: ${v === null || v === undefined ? 'N/A' : v}`;
+  }).join(' Â· ');
+  document.getElementById('rv-scores-detail').innerHTML = detail;
+}
+
+// â”€â”€ SANDBOX SUBMISSION â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+let _pollInterval = null;
+
+function showState(state) {
+  document.getElementById('result-empty').style.display   = state === 'empty'   ? 'flex' : 'none';
+  document.getElementById('result-loading').style.display = state === 'loading' ? 'flex' : 'none';
+  document.getElementById('result-content').style.display = state === 'content' ? 'flex' : 'none';
+  document.getElementById('result-error').style.display   = state === 'error'   ? 'block' : 'none';
+}
+
+async function submitAgent() {
+  const err4 = document.getElementById('wz4-error');
+  err4.style.display = 'none';
+
+  const phi     = _wzState.phiComputed ?? 0.5;
+  const epsilon = _wzState.epsComputed ?? 3.0;
+
+  // Build assessment_scores payload
+  const phiScoresPayload = {};
+  PHI_PARAMS.forEach(p => {
+    const v = _wzState.phiScores[p.key];
+    phiScoresPayload[p.key] = (v === null || v === undefined) ? null : v;
+  });
+  const epsScoresPayload = {};
+  EPS_PARAMS.forEach(p => {
+    const v = _wzState.epsScores[p.key];
+    epsScoresPayload[p.key] = (v === null || v === undefined) ? null : v;
+  });
+
+  const btn = document.getElementById('sb-submit');
+  btn.disabled = true;
+  btn.textContent = 'Submitting...';
+  showState('loading');
+
+  if (_pollInterval) { clearInterval(_pollInterval); _pollInterval = null; }
+
+  try {
+    const res = await fetch(`${API}/sandbox/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-API-Key': window.AIOS_API_KEY || '' },
+      body: JSON.stringify({
+        agent_id:   _wzState.agentId,
+        agent_name: _wzState.agentName,
+        domain:     _wzState.domain,
+        phi:        phi,
+        epsilon:    epsilon,
+        beta_pref:  1.0,
+        run_duration_interactions: 500,
+        assessment_scores: {
+          agent_category:   _wzState.category,
+          phi_scores:       phiScoresPayload,
+          epsilon_scores:   epsScoresPayload,
+          phi_computed:     phi,
+          epsilon_computed: epsilon,
+        },
+        tool_count:     parseInt(document.getElementById('wz-tool-count').value) || 0,
+        operation_mode: document.querySelector('input[name="operation_mode"]:checked')?.value || 'episodic',
+        shared_state:   document.getElementById('wz-shared-state').value || 'none',
+      }),
+    });
+
+    if (res.status === 429) {
+      const d = await res.json();
+      showState('error');
+      document.getElementById('result-error').textContent =
+        `Rate limit: ${d.detail} Retry in ${d.retry_after_seconds}s.`;
+      document.getElementById('result-error').style.display = 'block';
+      btn.disabled = false; btn.textContent = 'Run certification â†’';
+      return;
+    }
+    if (!res.ok) {
+      showState('error');
+      document.getElementById('result-error').textContent = `Submission failed (${res.status}).`;
+      document.getElementById('result-error').style.display = 'block';
+      btn.disabled = false; btn.textContent = 'Run certification â†’';
+      return;
+    }
+
+    const run = await res.json();
+    btn.textContent = 'Running simulation...';
+    pollRun(run.run_id);
+
+  } catch(e) {
+    showState('error');
+    document.getElementById('result-error').textContent = `Network error: ${e.message}`;
+    document.getElementById('result-error').style.display = 'block';
+    btn.disabled = false; btn.textContent = 'Run certification â†’';
+  }
+}
+
+async function pollRun(runId) {
+  const STAGES = ['Initialising...', 'Baseline run...', 'Agent simulation...', 'Computing report...', 'Finalising...'];
+
+  _pollInterval = setInterval(async () => {
+    try {
+      const r = await fetch(`${API}/sandbox/run/${runId}`, { headers: { 'X-API-Key': window.AIOS_API_KEY || '' } });
+      if (!r.ok) return;
+      const run = await r.json();
+
+      const pct   = Math.round((run.progress ?? 0) * 100);
+      const stage = STAGES[Math.min(Math.floor(run.progress * STAGES.length), STAGES.length - 1)];
+
+      document.getElementById('result-progress').style.width = `${pct}%`;
+      document.getElementById('result-progress-label').textContent = `${stage} (${pct}%)`;
+
+      if (run.status === 'complete') {
+        clearInterval(_pollInterval); _pollInterval = null;
+        await fetchReport(runId);
+        document.getElementById('sb-submit').disabled    = false;
+        document.getElementById('sb-submit').textContent = 'Run certification â†’';
+      } else if (run.status === 'failed') {
+        clearInterval(_pollInterval); _pollInterval = null;
+        showState('error');
+        document.getElementById('result-error').textContent = 'Simulation failed. Please try again.';
+        document.getElementById('result-error').style.display = 'block';
+        document.getElementById('sb-submit').disabled    = false;
+        document.getElementById('sb-submit').textContent = 'Run certification â†’';
+      }
+    } catch(e) {}
+  }, 1500);
+}
+
+async function fetchReport(runId) {
+  try {
+    const r = await fetch(`${API}/sandbox/report/${runId}`, { headers: { 'X-API-Key': window.AIOS_API_KEY || '' } });
+    if (!r.ok) {
+      await new Promise(res => setTimeout(res, 2000));
+      const r2 = await fetch(`${API}/sandbox/report/${runId}`, { headers: { 'X-API-Key': window.AIOS_API_KEY || '' } });
+      if (!r2.ok) { showState('error'); return; }
+      renderReport(await r2.json());
+    } else {
+      renderReport(await r.json());
+    }
+  } catch(e) {
+    showState('error');
+    document.getElementById('result-error').textContent = `Could not fetch report: ${e.message}`;
+    document.getElementById('result-error').style.display = 'block';
+  }
+}
+
+function renderReport(report) {
+  showState('content');
+
+  const verdict  = report.verdict;
+  const cls      = report.cls_score;
+  const baseline = report.baseline?.final_ci ?? 0;
+  const withAgent= report.with_agent?.final_ci ?? 0;
+  const delta    = withAgent - baseline;
+
+  const badge = document.getElementById('result-verdict-badge');
+  badge.textContent = verdict.replace(/_/g, ' ');
+  badge.className   = 'verdict-badge';
+  if      (verdict === 'CERTIFIED')              badge.classList.add('verdict-certified');
+  else if (verdict === 'CERTIFIED_WITH_ADVISORY')badge.classList.add('verdict-advisory');
+  else                                           badge.classList.add('verdict-not-certified');
+
+  document.getElementById('result-cls').textContent      = cls.toFixed(1);
+  document.getElementById('result-ci-delta').textContent = (delta >= 0 ? '+' : '') + delta.toFixed(4);
+  document.getElementById('result-ci-base').textContent  = baseline.toFixed(4);
+  document.getElementById('result-ci-agent').textContent = withAgent.toFixed(4);
+
+  document.getElementById('result-cls-bar').style.width = `${Math.min(100, cls)}%`;
+  document.getElementById('result-cls-pct').textContent = `${cls.toFixed(1)} / 100`;
+
+  document.getElementById('result-narrative').textContent = report.narrative ?? 'â€”';
+
+  const advisoryEl = document.getElementById('result-advisory');
+  if (report.advisory) {
+    advisoryEl.textContent   = 'âš  ' + report.advisory;
+    advisoryEl.style.display = 'block';
+  } else {
+    advisoryEl.style.display = 'none';
+  }
+
+  document.getElementById('result-run-id').textContent = `run: ${report.run_id}`;
+
+  // Session 16: render assessment summary if present
+  const assessSummary = document.getElementById('result-assess-summary');
+  const assessRows    = document.getElementById('result-assess-rows');
+  const as = report.assessment_scores;
+  if (as) {
+    assessRows.innerHTML = '';
+    const allParams = [
+      ...PHI_PARAMS.map(p => ({ ...p, group: 'Ï†', scores: as.phi_scores })),
+      ...EPS_PARAMS.map(p => ({ ...p, group: 'Îµ', scores: as.epsilon_scores })),
+    ];
+    allParams.forEach(p => {
+      const v = p.scores?.[p.key];
+      const row = document.createElement('div');
+      row.className = 'assess-summary-row';
+      row.innerHTML = `<span>${p.group} ${p.label}</span><span>${v === null || v === undefined ? 'N/A' : v + '/10'}</span>`;
+      assessRows.appendChild(row);
+    });
+    document.getElementById('result-phi-derived').textContent =
+      as.phi_computed !== null && as.phi_computed !== undefined ? as.phi_computed.toFixed(3) : 'â€”';
+    document.getElementById('result-eps-derived').textContent =
+      as.epsilon_computed !== null && as.epsilon_computed !== undefined ? as.epsilon_computed.toFixed(3) : 'â€”';
+    assessSummary.style.display = 'block';
+  } else {
+    assessSummary.style.display = 'none';
+  }
+
+  pollRegistry();
+}
+</script>
+</body>
+</html>

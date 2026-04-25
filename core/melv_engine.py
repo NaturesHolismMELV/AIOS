@@ -1,0 +1,1517 @@
+"""
+MELVcore Engine
+===============
+Thermodynamic governance kernel for agent ecosystems.
+Based on the Modified Energetic Lotka-Volterra (MELV) framework.
+Blueprint for Harmony — L.W. Evans (Ecotao Enterprises, Cape Town)
+ORCID: 0009-0001-0963-1840
+
+Core principle: cooperation emerges thermodynamically when βi < 1.0
+
+══════════════════════════════════════════════════════════════════
+CANONICAL VARIABLE DEFINITIONS — DO NOT DEVIATE
+══════════════════════════════════════════════════════════════════
+
+  φ (phi)   EVOLUTIONARY MATURITY / FITNESS — INTERNAL to the agent.
+            Increases as the agent matures, specialises, or adapts.
+            The giraffe's long neck raises its φ.
+            φ is NOT set by the environment. φ is NOT the same as β.
+            Range: [0.0, 1.0]
+
+  β (beta)  ENVIRONMENTAL SUITABILITY — EXTERNAL. Set by the
+            environment configuration, NEVER by the agent.
+            The acacia crown niche has high β because it is rich and
+            uncontested. β is NOT something the agent increases.
+            Range: [0.1, 3.0] (kernel-managed)
+
+  i         INTERACTION COST RATIO — computed from C (cost) and B
+            (benefit) of an interaction between two agents.
+            i = C_AB / B_AB
+            NOT a property of a single agent. NOT the same as φ or β.
+
+  CI        COOPERATION INDEX — system-level measure of cooperative
+            equilibrium. CI = 1 - mean(βi) across recent interactions.
+            Target: CI > 0.75 (ecosystem in cooperative basin).
+            NOT an agent property. NOT the same as φ.
+
+CORRECT niche divergence:  agent.phi += niche_divergence_benefit
+                           environment.beta['niche'] = 0.95
+WRONG  niche divergence:   agent.beta += niche_divergence_bonus  ← NEVER
+
+GATEWAY API ENFORCEMENT:
+  The Gateway API at POST /melv/interact enforces these definitions.
+  Any payload attempting to set β from the agent side is rejected HTTP 422.
+  Agents report phi (φ) only. The kernel reads β from BetaEnvironment.
+
+══════════════════════════════════════════════════════════════════
+"""
+
+import math
+import time
+import random
+import json
+import numpy as np
+from dataclasses import dataclass, field, asdict
+from typing import Optional
+from enum import Enum
+
+# ── SIGMOID QUORUM GATE CONSTANTS (Session 25 — ABM V2.1 verified ③) ──────
+# Quorum sensing correspondence (MAIES Event 2 — Gemini, Nadell 2016):
+#   MELV: f(φ·β) = 1/(1+exp(-k(φ·β − τ)))  ≡  P(coop) = 1/(1+exp(-k(N − N_thresh)))
+# DO NOT CHANGE τ or k without a new ABM run (sensitivity=1.0, specificity=0.997)
+QUORUM_TAU           = 0.5    # τ — sigmoid inflection point (ABM V2.1 φ×β boundary)
+QUORUM_K             = 10.0   # k — sharpness (ABM V2.1 optimised)
+PROVISION_STEP_FLOOR = 0.05   # minimum PROVISION_BETA step (healthy ecosystem)
+PROVISION_STEP_CEIL  = 0.50   # maximum PROVISION_BETA step (stressed ecosystem)
+
+# ── ε DECOMPOSITION CONSTANTS (Session 26 — v2.2.0) ───────────────────────
+# ε_effective = ε_intrinsic + ε_environmental
+# ε_intrinsic  — agent-side plasticity (learned, heritable, domain-specific)
+# ε_environmental — infrastructure friction (tool latency, API limits, etc.)
+#
+# TOOL FRICTION WEIGHTS: relative cost of each resource type per interaction.
+# Derived from the BetaEnvironment resource ordering and typical AI agent
+# deployment profiles. ② theoretically grounded — not yet empirically calibrated.
+TOOL_FRICTION_WEIGHTS: dict = {
+    "compute":        1.0,   # baseline
+    "api_quota":      1.4,   # external API calls: higher latency variance
+    "vector_db":      1.2,   # retrieval overhead
+    "storage":        0.8,   # lowest friction (async I/O)
+    "token_budget":   1.3,   # LLM token pressure amplifies plasticity cost
+    "context_window": 1.1,   # context management overhead
+}
+
+# Speed-to-Cooperation (STC) normalisation: seconds at which STC = 1.0
+# A freshly registered agent with mean ε in a calibrated sandbox reaches
+# CI_TARGET in ≈ STC_REFERENCE_SECONDS in the reference environment.
+# ② theoretical — will be updated when Session 23 empirical data warrants.
+STC_REFERENCE_SECONDS = 120.0
+
+# Diagnosis thresholds (② theoretical, principled)
+VOLATILE_EPSILON_THRESHOLD   = 6.0   # ε_intrinsic ≥ 6.0 → AGENT_VOLATILE
+ENV_BOTTLENECK_THRESHOLD     = 1.5   # ε_environmental ≥ 1.5 → ENV_BOTTLENECKED
+LEGACY_PHI_THRESHOLD         = 0.35  # φ ≤ 0.35 AND high ε → LEGACY_CANDIDATE
+LEGACY_EPSILON_THRESHOLD     = 4.0   # ε_effective ≥ 4.0 for LEGACY badge
+
+
+@dataclass
+class EpsilonProfile:
+    """
+    Session 26: Decomposed ε profile for a single agent assessment.
+
+    ε_effective = ε_intrinsic + ε_environmental
+
+    Where:
+      ε_intrinsic     — agent-side adaptive plasticity (from assessment scores)
+      ε_environmental — infrastructure friction (from resource β values and
+                        tool friction weights)
+
+    Diagnosis badges (mutually non-exclusive):
+      AGENT_VOLATILE   — ε_intrinsic ≥ 6.0: agent itself is the plasticity source
+      ENV_BOTTLENECKED — ε_environmental ≥ 1.5: infrastructure is amplifying cost
+      LEGACY_CANDIDATE — low φ AND high ε_effective: likely legacy architecture
+
+    STC (Speed-to-Cooperation):
+      Estimated time for this agent to reach CI_TARGET in current environment.
+      STC = STC_REFERENCE_SECONDS × (ε_effective / EPSILON_REFERENCE) × (1 / β_mean)
+    """
+    agent_id:         str
+    epsilon_intrinsic:     float   # agent-side component
+    epsilon_environmental: float   # infrastructure-side component
+    epsilon_effective:     float   # sum
+    phi:              float        # current φ at time of assessment
+    beta_mean:        float        # mean β across all resources
+    stc_seconds:      float        # Speed-to-Cooperation estimate
+    badges:           list         # diagnosis badges
+    resource_friction: dict        # per-resource friction breakdown
+    interpretation:   str          # plain-language summary
+
+# ── CI DYNAMICS CONSTANTS ──────────────────────────────────────────────────
+CI_TARGET            = 0.75      # Cooperative basin threshold
+CI_HISTORY_MAX       = 1000      # Maximum timestamped CI readings to retain
+CI_DCIDT_WINDOW      = 10        # Rolling window for dCI/dt computation (readings)
+CI_DRIFT_WINDOW      = 500       # Long-run drift window (readings)
+CI_OSCILLATION_WINDOW = 60.0     # Seconds: oscillation detection look-back
+CI_OSCILLATION_MIN_AMPLITUDE = 0.05  # Minimum CI drop to register as oscillation
+
+# ── tanh φ UPDATE CONSTANTS (Session 10 — DeepSeek independent derivation) ─
+# Axiom 3: φ changes on a SLOW timescale relative to individual interactions.
+# Axiom 8: heterogeneity maintained by Gaussian noise.
+# dφ/dt = (1/τ_φ) · [tanh(γ · mean_surplus) − φ] + η_φ(t)
+TAU_PHI_FACTOR = 0.01    # τ_φ factor — keeps φ slow relative to interactions (Axiom 3)
+PHI_GAIN       = 2.0     # γ  — tanh sensitivity to surplus
+WINDOW_SIZE    = 10      # δ  — surplus memory window (interactions)
+NOISE_SIGMA    = 0.002   # η_φ — Axiom 8 heterogeneity noise
+
+
+# ── ENUMS ──────────────────────────────────────────────────────────────────
+
+class AgentStatus(str, Enum):
+    ACTIVE    = "active"
+    MATURING  = "maturing"
+    THRESHOLD = "threshold"
+    SUSPENDED = "suspended"
+    RETIRED   = "retired"
+
+class InteractionType(str, Enum):
+    COOPERATIVE = "cooperative"   # βi < 0.70
+    THRESHOLD   = "threshold"     # 0.70 ≤ βi < 1.0
+    CONFLICT    = "conflict"      # βi ≥ 1.0
+
+class KernelAction(str, Enum):
+    NONE              = "none"
+    NUDGE             = "nudge"              # stochastic perturbation (Axiom 8)
+    NICHE_DIVERGENCE  = "niche_divergence"   # partition resource
+    ROUTE_SERVICE     = "route_service"      # route through Omega mesh
+    AGENT_SUBSTITUTE  = "agent_substitute"   # replace agent
+    PROVISION_BETA    = "provision_beta"     # increase environmental capacity
+
+
+# ── DATA STRUCTURES ────────────────────────────────────────────────────────
+
+@dataclass
+class AgentProfile:
+    """
+    MELV EcoProfile for a single agent.
+
+    φ (phi)     — evolutionary maturity / domain optimization [0.0–1.0]
+    ε (epsilon) — adaptive plasticity / learning rate [0.0–8.0]
+    β_pref      — preferred environmental compatibility [0.0–2.0]
+    """
+    agent_id:    str
+    name:        str
+    domain:      str
+    phi:         float = 0.5       # evolutionary maturity
+    epsilon:     float = 3.0       # adaptive plasticity
+    beta_pref:   float = 1.0       # preferred beta
+    status:      AgentStatus = AgentStatus.MATURING
+    capabilities: list = field(default_factory=list)
+    created_at:  float = field(default_factory=time.time)
+    task_count:  int = 0
+    success_rate: float = 0.0
+    preferred_resource: Optional[str] = None   # Session 22: niche routing tag
+    surplus_window: list = field(default_factory=list)  # Session 22: φ persistence fix
+
+    def maturity_label(self) -> str:
+        if self.phi >= 0.85: return "expert"
+        if self.phi >= 0.65: return "proficient"
+        if self.phi >= 0.40: return "developing"
+        return "novice"
+
+    def to_dict(self) -> dict:
+        d = asdict(self)
+        d['status'] = self.status.value
+        d['maturity_label'] = self.maturity_label()
+        return d
+
+
+@dataclass
+class InteractionRecord:
+    """
+    Measured interaction between two agents.
+
+    i = C/B  (cost / benefit ratio)
+    βi       (modulated by environmental suitability)
+    """
+    agent_a:      str
+    agent_b:      str
+    cost:         float          # measurable interaction cost
+    benefit:      float          # measurable benefit
+    beta:         float          # environmental suitability at time of interaction
+    resource_type: str = "compute"  # Session 23: resource type for empirical calibration
+    timestamp:    float = field(default_factory=time.time)
+
+    @property
+    def i_factor(self) -> float:
+        """i = C/B — the core MELV interaction coefficient"""
+        if self.benefit <= 0:
+            return 2.0  # degenerate: no benefit
+        return self.cost / self.benefit
+
+    @property
+    def beta_i(self) -> float:
+        """β·i — the modulated threshold value"""
+        return self.beta * self.i_factor
+
+    @property
+    def interaction_type(self) -> InteractionType:
+        bi = self.beta_i
+        if bi < 0.70:  return InteractionType.COOPERATIVE
+        if bi < 1.00:  return InteractionType.THRESHOLD
+        return InteractionType.CONFLICT
+
+    def to_dict(self) -> dict:
+        return {
+            "agent_a":          self.agent_a,
+            "agent_b":          self.agent_b,
+            "cost":             round(self.cost, 4),
+            "benefit":          round(self.benefit, 4),
+            "beta":             round(self.beta, 4),
+            "i_factor":         round(self.i_factor, 4),
+            "beta_i":           round(self.beta_i, 4),
+            "interaction_type": self.interaction_type.value,
+            "resource_type":    self.resource_type,
+            "timestamp":        self.timestamp,
+        }
+
+
+@dataclass
+class BifurcationEvent:
+    """
+    Recorded event when the kernel intervenes to drive the ecosystem
+    away from the threshold zone toward the cooperative basin.
+    """
+    event_id:    str
+    agent_a:     str
+    agent_b:     str
+    beta_i_pre:  float
+    beta_i_post: float
+    action:      KernelAction
+    description: str
+    timestamp:   float = field(default_factory=time.time)
+    resolved:    bool = False
+
+    def to_dict(self) -> dict:
+        return {
+            "event_id":    self.event_id,
+            "agent_a":     self.agent_a,
+            "agent_b":     self.agent_b,
+            "beta_i_pre":  round(self.beta_i_pre, 4),
+            "beta_i_post": round(self.beta_i_post, 4),
+            "action":      self.action.value,
+            "description": self.description,
+            "timestamp":   self.timestamp,
+            "resolved":    self.resolved,
+        }
+
+
+@dataclass
+class OscillationEvent:
+    """
+    Recorded when CI crosses the 0.75 cooperative target and then
+    falls back below it within the oscillation detection window.
+
+    Characterises whether the ecosystem exhibits damped, undamped,
+    or divergent behaviour around the cooperative attractor.
+    """
+    event_id:      str
+    ci_peak:       float          # Highest CI reading in the crossing
+    ci_trough:     float          # CI value at fall-back detection
+    amplitude:     float          # ci_peak - ci_trough
+    period_sec:    float          # Time from peak to trough (seconds)
+    timestamp:     float = field(default_factory=time.time)
+    implicated_pairs: list = field(default_factory=list)
+
+    def to_dict(self) -> dict:
+        return {
+            "event_id":         self.event_id,
+            "ci_peak":          round(self.ci_peak, 4),
+            "ci_trough":        round(self.ci_trough, 4),
+            "amplitude":        round(self.amplitude, 4),
+            "period_sec":       round(self.period_sec, 2),
+            "timestamp":        self.timestamp,
+            "implicated_pairs": self.implicated_pairs,
+        }
+
+
+@dataclass
+class BetaEnvironment:
+    """
+    Environmental suitability (β) for different resource types.
+    β modulates how effectively agents can interact.
+    High β = abundant niches = lower effective i-factor.
+    """
+    compute:        float = 1.0   # CPU/GPU availability
+    api_quota:      float = 0.9   # External API bandwidth
+    vector_db:      float = 1.2   # Vector DB I/O
+    storage:        float = 0.8   # File/blob storage
+    token_budget:   float = 1.1   # LLM token allocation
+    context_window: float = 1.0   # Per-call context capacity (distinct from token budget)
+
+    def get(self, resource: str) -> float:
+        return getattr(self, resource, 1.0)
+
+    def set(self, resource: str, value: float):
+        """Set β for a resource type — called only by the kernel (oxpecker, provision_beta)."""
+        if hasattr(self, resource):
+            setattr(self, resource, max(0.1, min(3.0, value)))
+
+    def mean(self) -> float:
+        vals = [self.compute, self.api_quota, self.vector_db,
+                self.storage, self.token_budget, self.context_window]
+        return sum(vals) / len(vals)
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+
+# ── MELV KERNEL ────────────────────────────────────────────────────────────
+
+class MELVKernel:
+    """
+    The thermodynamic watchdog.
+
+    Continuously monitors i-factors across all agent pairs,
+    detects threshold-zone interactions, and applies bifurcation
+    nudges to drive the ecosystem toward cooperative basin (βi < 1.0).
+
+    MELV equations implemented:
+      i = C/B
+      βi < 1.0  →  cooperative equilibrium
+      di/dt = ε(i - i_target) + η   [adaptive dynamics]
+      β_service = λ_max(Ω) / n      [service coupling]
+    """
+
+    COOPERATIVE_THRESHOLD = 0.70
+    CONFLICT_THRESHOLD    = 1.00
+    NUDGE_NOISE_SIGMA     = 0.05    # η — stochastic perturbation (Axiom 8)
+
+    def __init__(self, persistence=None):
+        self.agents:       dict[str, AgentProfile]    = {}
+        self.interactions: list[InteractionRecord]     = []
+        self.events:       list[BifurcationEvent]      = []
+        self.beta:         BetaEnvironment             = BetaEnvironment()
+        self._event_counter = 0
+        # Session 7: contention depth per agent pair key "agentA::agentB"
+        # Increments on each threshold/conflict event, resets on cooperative
+        self._contention_depth: dict[str, int] = {}
+        # Session 9: CI Dynamics — timestamped history and oscillation tracking
+        self._ci_history: list[tuple[float, float]] = []  # (timestamp, ci_value)
+        self._osc_counter: int = 0
+        self.oscillation_events: list[OscillationEvent] = []
+        self._osc_above_target: bool = False   # True once CI has crossed 0.75
+        self._osc_peak_ci:  float = 0.0
+        self._osc_peak_ts:  float = 0.0
+        # Session 12: optional persistence store (injected from server.py)
+        self._persistence = persistence
+
+    def _pair_key(self, agent_a: str, agent_b: str) -> str:
+        """Canonical key for an agent pair (order-normalised)."""
+        return "::".join(sorted([agent_a, agent_b]))
+
+    def get_contention_depth(self, agent_a: str, agent_b: str) -> int:
+        """Return current contention depth for an agent pair."""
+        return self._contention_depth.get(self._pair_key(agent_a, agent_b), 0)
+
+    def get_pair_pattern(
+        self,
+        agent_a: str,
+        agent_b: str,
+        short_window: int = 20,
+    ) -> dict:
+        """
+        Session 22 Fix A1 — Query governance history for a specific agent pair.
+
+        Two horizons:
+          short — last `short_window` in-memory BifurcationEvents
+          long  — full persistence history for the pair (if persistence attached)
+
+        Returns a structured dict used by _kernel_respond() to decide
+        intervention strength.
+        """
+        from collections import Counter
+
+        key = self._pair_key(agent_a, agent_b)
+
+        # Short horizon: scan in-memory events
+        short = [
+            e for e in self.events[-short_window:]
+            if self._pair_key(e.agent_a, e.agent_b) == key
+        ]
+
+        # Long horizon: persistence query
+        long = []
+        if self._persistence:
+            long = self._persistence.load_pair_events(agent_a, agent_b)
+
+        def dominant(events):
+            if not events:
+                return None
+            actions = [
+                e.action.value if hasattr(e, 'action') else e.get('action')
+                for e in events
+            ]
+            actions = [a for a in actions if a is not None]
+            if not actions:
+                return None
+            return Counter(actions).most_common(1)[0][0]
+
+        def conflict_rate(events):
+            if not events:
+                return 0.0
+            conflicts = sum(
+                1 for e in events
+                if (e.beta_i_pre if hasattr(e, 'beta_i_pre')
+                    else e.get('beta_i_pre', 0)) >= 1.0
+            )
+            return conflicts / len(events)
+
+        # escalation_needed: this would be the 3rd+ consecutive same-action event
+        # get_pair_pattern is called BEFORE the new event is appended, so we check
+        # whether the last 2 in-memory events are the same action (making the current
+        # the 3rd consecutive matching event).
+        escalation_needed = False
+        if len(short) >= 2:
+            last_two_actions = [
+                e.action.value if hasattr(e, 'action') else e.get('action')
+                for e in short[-2:]
+            ]
+            escalation_needed = len(set(last_two_actions)) == 1
+
+        return {
+            'short_event_count':         len(short),
+            'long_event_count':          len(long),
+            'dominant_action_short':     dominant(short),
+            'dominant_action_long':      dominant(long),
+            'escalation_needed':         escalation_needed,
+            'structurally_incompatible': (
+                len(long) >= 10 and conflict_rate(long) > 0.70
+            ),
+            'situational': (
+                len(long) >= 10 and conflict_rate(long) < 0.30
+            ),
+        }
+
+    # ── AGENT MANAGEMENT ──────────────────────────────────────────────────
+
+    def register_agent(self, profile: AgentProfile) -> AgentProfile:
+        """Register a new agent in the ecosystem."""
+        self.agents[profile.agent_id] = profile
+        if self._persistence:
+            self._persistence.save_agent(profile)
+        return profile
+
+    def get_agent(self, agent_id: str) -> Optional[AgentProfile]:
+        return self.agents.get(agent_id)
+
+    def update_phi(self, agent_id: str, outcome_quality: float):
+        """
+        Update agent's φ (evolutionary maturity) based on task outcome.
+
+        Session 10 — tanh φ Enhancement (DeepSeek independent derivation):
+          dφ/dt = (1/τ_φ) · [tanh(γ · mean_surplus) − φ] + η_φ(t)
+
+        Three theoretical advantages over the previous linear update:
+          1. Natural boundedness in [0,1] — saturation is intrinsic, not clamped
+          2. Diminishing returns at high maturity (giraffe constraint, Axiom 3)
+          3. Surplus memory window — φ responds to patterns, not single outcomes
+
+        Backward compatibility: explicit max/min clamp retained so existing
+        threshold assertions (MATURING → ACTIVE at φ ≥ 0.75) are unaffected.
+        """
+        agent = self.agents.get(agent_id)
+        if not agent:
+            return
+
+        # Update surplus memory window
+        surplus = outcome_quality - 0.5          # centred: positive = good outcome
+        agent.surplus_window.append(surplus)
+        if len(agent.surplus_window) > WINDOW_SIZE:
+            agent.surplus_window = agent.surplus_window[-WINDOW_SIZE:]
+
+        mean_surplus = sum(agent.surplus_window) / len(agent.surplus_window)
+
+        # tanh target — shifted from (-1,1) to (0,1) by (tanh + 1) / 2
+        phi_target = (math.tanh(PHI_GAIN * mean_surplus) + 1.0) / 2.0
+
+        # Slow relaxation toward target (Axiom 3: τ_φ >> τ_interaction)
+        delta = TAU_PHI_FACTOR * (phi_target - agent.phi)
+        noise = random.gauss(0, NOISE_SIGMA)   # Axiom 8: heterogeneity
+
+        agent.phi = max(0.0, min(1.0, agent.phi + delta + noise))
+        agent.task_count += 1
+
+        # Update success rate rolling average
+        agent.success_rate = (
+            (agent.success_rate * (agent.task_count - 1) + outcome_quality)
+            / agent.task_count
+        )
+
+        # Promote status based on maturity (thresholds unchanged)
+        if agent.phi >= 0.75 and agent.status == AgentStatus.MATURING:
+            agent.status = AgentStatus.ACTIVE
+        elif agent.phi >= 0.90:
+            agent.status = AgentStatus.ACTIVE
+
+        # Session 22 Fix C2: periodic flush — max drift between flushes ≈ 0.10
+        if self._persistence and agent.task_count % 10 == 0:
+            self._persistence.save_agent(agent)
+
+    # ── i-FACTOR MONITORING ───────────────────────────────────────────────
+
+    def record_interaction(
+        self,
+        agent_a: str,
+        agent_b: str,
+        cost: float,
+        benefit: float,
+        resource_type: str = "compute"
+    ) -> InteractionRecord:
+        """
+        Record an interaction and measure its i-factor.
+        Triggers kernel response if βi approaches threshold.
+        """
+        beta = self.beta.get(resource_type)
+        record = InteractionRecord(
+            agent_a=agent_a,
+            agent_b=agent_b,
+            cost=cost,
+            benefit=benefit,
+            beta=beta,
+            resource_type=resource_type,
+        )
+        self.interactions.append(record)
+        if self._persistence:
+            self._persistence.save_interaction(record)
+        # Session 9: update CI history after every interaction
+        self._record_ci_snapshot()
+
+        # Session 7: track contention depth per agent pair
+        pair_key = self._pair_key(agent_a, agent_b)
+        if record.interaction_type in (InteractionType.THRESHOLD, InteractionType.CONFLICT):
+            self._contention_depth[pair_key] = self._contention_depth.get(pair_key, 0) + 1
+            self._kernel_respond(record, resource_type=resource_type)
+        else:
+            # Cooperative: reset contention depth for this pair
+            self._contention_depth[pair_key] = 0
+
+        return record
+
+    def _kernel_respond(self, record: InteractionRecord, resource_type: str = "compute"):
+        """
+        Session 22 Fix A3 — Pattern-aware bifurcation response.
+
+        Four-branch escalation table:
+          1. NUDGE            — threshold, first/second event for this pair
+          2. PROVISION_BETA   — threshold, 3rd+ event same pair (escalation_needed)
+          3. NICHE_DIVERGENCE — conflict (βi ≥ 1.0), not structurally incompatible
+          4. PROVISION_BETA + permanent niche tag — conflict AND structurally_incompatible
+
+        The kernel now *governs* (changes state) rather than just observing.
+        """
+        bi = record.beta_i
+
+        # Query pair history to decide escalation level
+        pattern = self.get_pair_pattern(record.agent_a, record.agent_b)
+
+        if record.interaction_type == InteractionType.THRESHOLD:
+            if pattern['escalation_needed']:
+                # 3rd+ same-action event — provision β (Session 25: sigmoid-scaled step ③)
+                phi_beta = self.phi_beta_quorum()
+                gate     = self._quorum_gate(phi_beta)
+                step     = PROVISION_STEP_FLOOR + gate * (PROVISION_STEP_CEIL - PROVISION_STEP_FLOOR)
+                self.beta.set(resource_type, self.beta.get(resource_type) + step)
+                new_bi = max(0.1, bi - step)
+                action = KernelAction.PROVISION_BETA
+                desc = (
+                    f"{record.agent_a} × {record.agent_b} threshold zone "
+                    f"(βi={bi:.3f}), escalation_needed=True. "
+                    f"φ·β={phi_beta:.3f}, gate={gate:.3f}. "
+                    f"β provisioned for {resource_type} (+{step:.3f}). βi → {new_bi:.3f}"
+                )
+                if self._persistence:
+                    self._persistence.save_beta(self.beta)
+            else:
+                # First/second event — stochastic nudge (Axiom 8)
+                eta = random.gauss(0, self.NUDGE_NOISE_SIGMA)
+                new_bi = max(0.1, bi - abs(eta) - 0.08)
+                action = KernelAction.NUDGE
+                desc = (
+                    f"{record.agent_a} × {record.agent_b} in threshold zone "
+                    f"(βi={bi:.3f}). Stochastic perturbation applied. "
+                    f"Projected βi → {new_bi:.3f}"
+                )
+        else:
+            # Conflict zone (βi ≥ 1.0)
+            if pattern['structurally_incompatible']:
+                # Compound intervention: provision β AND permanent niche tag
+                # Session 25: sigmoid-scaled step ③
+                phi_beta = self.phi_beta_quorum()
+                gate     = self._quorum_gate(phi_beta)
+                step     = PROVISION_STEP_FLOOR + gate * (PROVISION_STEP_CEIL - PROVISION_STEP_FLOOR)
+                self.beta.set(resource_type, self.beta.get(resource_type) + step)
+                new_bi = max(0.1, bi * 0.50)
+                action = KernelAction.PROVISION_BETA
+                # Set permanent preferred_resource tag on agent_a
+                agent_a_profile = self.agents.get(record.agent_a)
+                if agent_a_profile is not None:
+                    alt = self._suggested_alt_domain(resource_type)
+                    agent_a_profile.preferred_resource = alt
+                if self._persistence:
+                    self._persistence.save_beta(self.beta)
+                    if agent_a_profile is not None:
+                        self._persistence.save_agent(agent_a_profile)
+                desc = (
+                    f"{record.agent_a} × {record.agent_b} structurally incompatible "
+                    f"(βi={bi:.3f}). φ·β={phi_beta:.3f}, gate={gate:.3f}. "
+                    f"Compound: β provisioned (+{step:.3f}) + permanent niche tag. "
+                    f"βi → {new_bi:.3f}"
+                )
+            else:
+                # Conflict, not structurally incompatible — niche divergence
+                new_bi = bi * 0.65
+                action = KernelAction.NICHE_DIVERGENCE
+                # Set temporary preferred_resource routing tag
+                agent_a_profile = self.agents.get(record.agent_a)
+                if agent_a_profile is not None:
+                    alt = self._suggested_alt_domain(resource_type)
+                    agent_a_profile.preferred_resource = alt
+                desc = (
+                    f"{record.agent_a} × {record.agent_b} in conflict "
+                    f"(βi={bi:.3f}). Niche divergence — routing tag set to "
+                    f"'{self._suggested_alt_domain(resource_type)}'. βi → {new_bi:.3f}"
+                )
+                # Session 27: capture interaction fragment at bifurcation point
+                # Biological: the departing agent leaves behind its 'tick load' —
+                # the exhaust of high-φ specialisation. Value ∝ φ_a × φ_b.
+                self._capture_oxpecker_fragment(record, resource_type)
+
+        self._event_counter += 1
+        event = BifurcationEvent(
+            event_id=f"BIF-{self._event_counter:04d}",
+            agent_a=record.agent_a,
+            agent_b=record.agent_b,
+            beta_i_pre=bi,
+            beta_i_post=new_bi,
+            action=action,
+            description=desc,
+            resolved=(new_bi < self.CONFLICT_THRESHOLD)
+        )
+        self.events.append(event)
+        if self._persistence:
+            self._persistence.save_event(event)
+
+    @staticmethod
+    def _suggested_alt_domain(resource_type: str) -> str:
+        """Return an alternative resource domain for niche routing."""
+        _alternatives = {
+            "compute":        "vector_db",
+            "api_quota":      "token_budget",
+            "vector_db":      "storage",
+            "storage":        "context_window",
+            "token_budget":   "api_quota",
+            "context_window": "compute",
+        }
+        return _alternatives.get(resource_type, "storage")
+
+    def _capture_oxpecker_fragment(
+        self, record: "InteractionRecord", resource_type: str
+    ) -> None:
+        """
+        Session 27 — Context capture at NICHE_DIVERGENCE.
+
+        Stores the partial interaction state before the migrating agent leaves.
+        Called exclusively from _kernel_respond() when NICHE_DIVERGENCE fires.
+
+        Fragment data captured:
+          - Recent interaction records for the bifurcating pair on this resource
+          - Current φ values of both agents
+          - Resource type, timestamp, event_id (auto-numbered)
+
+        Biological correspondence:
+          The fragment is the tick load — the exhaust of high-φ specialisation.
+          High-φ agent pairs produce richer fragments (more mature context).
+          Fragment value ∝ φ_a × φ_b  (Validation Stream 9, testable prediction).
+
+        NOTE: Does NOT replace apply_oxpecker_effect() in nudge_engine.py.
+        Phase 1 (environmental β lift) remains intact. Phase 2 adds the fragment
+        capture alongside it.
+        """
+        import uuid
+
+        if not self._persistence:
+            return  # no-op without persistence (tests may inject later)
+
+        # Gather recent interactions for this pair on this resource
+        pair_key = self._pair_key(record.agent_a, record.agent_b)
+        recent_for_pair = [
+            r.to_dict() for r in self.interactions[-50:]
+            if (self._pair_key(r.agent_a, r.agent_b) == pair_key
+                and r.resource_type == resource_type)
+        ][-5:]  # last 5 interactions for this pair on this resource
+
+        phi_a = self.agents[record.agent_a].phi if record.agent_a in self.agents else 0.5
+        phi_b = self.agents[record.agent_b].phi if record.agent_b in self.agents else 0.5
+
+        fragment = {
+            "fragment_id":   f"OXP-{uuid.uuid4().hex[:12].upper()}",
+            "agent_a":       record.agent_a,
+            "agent_b":       record.agent_b,
+            "resource_type": resource_type,
+            "status":        "pending",
+            "created_at":    record.timestamp,
+            "processed_at":  None,
+            "fragment_data": {
+                "recent_interactions": recent_for_pair,
+                "phi_a":               round(phi_a, 4),
+                "phi_b":               round(phi_b, 4),
+                "phi_product":         round(phi_a * phi_b, 4),
+                "bifurcation_bi":      round(record.beta_i, 4),
+                "resource_type":       resource_type,
+                "timestamp":           record.timestamp,
+                "interaction_count":   len(recent_for_pair),
+            },
+        }
+        try:
+            self._persistence.save_oxpecker_fragment(fragment)
+            import logging
+            logging.getLogger("aios.melv_engine").debug(
+                "Oxpecker fragment captured: %s (φ_a=%.2f φ_b=%.2f value≈%.4f)",
+                fragment["fragment_id"], phi_a, phi_b, phi_a * phi_b,
+            )
+        except Exception as e:
+            import logging
+            logging.getLogger("aios.melv_engine").warning(
+                "Fragment capture failed: %s", e
+            )
+
+    def compute_omega(self) -> dict:
+        """
+        Compute service coupling matrix Ω and its leading eigenvalue λ_max.
+
+        β_service = λ_max(Ω) / n
+
+        The adjacency matrix A is built from the last 100 interactions,
+        with edge weight = mean(1 − i_factor) for each agent pair
+        (higher weight = more cooperative coupling).
+
+        λ_max is the true leading eigenvalue via numpy.linalg.eigvalsh,
+        matching the formula in THEORY.md and Blueprint for Harmony Ch. 6.
+        Session 24: replaced heuristic proxy (Σw/√n) with real spectral analysis.
+        """
+        n = len(self.agents)
+        if n == 0:
+            return {"lambda_max": 0, "n": 0, "beta_service": 0, "edges": []}
+
+        ids  = list(self.agents.keys())
+        idx  = {aid: i for i, aid in enumerate(ids)}
+        A    = np.zeros((n, n))
+
+        # Build adjacency weights from interaction history (last 100)
+        recent  = self.interactions[-100:]
+        weights: dict[tuple, list] = {}
+        for r in recent:
+            if r.agent_a in idx and r.agent_b in idx:
+                key = (r.agent_a, r.agent_b)
+                weights.setdefault(key, []).append(1.0 - r.i_factor)
+
+        edges = []
+        for (a, b), vals in weights.items():
+            avg = sum(vals) / len(vals)
+            A[idx[a], idx[b]] = avg
+            A[idx[b], idx[a]] = avg   # symmetric — undirected coupling
+            edges.append({
+                "agent_a": a,
+                "agent_b": b,
+                "weight":  round(avg, 3),
+                "interaction_type": (
+                    "cooperative" if avg > 0.30 else
+                    "threshold"   if avg > 0.0  else
+                    "conflict"
+                )
+            })
+
+        # Real leading eigenvalue via symmetric eigensolver
+        eigenvalues  = np.linalg.eigvalsh(A)
+        lambda_max   = float(eigenvalues[-1])        # eigvalsh returns ascending order
+        beta_service = lambda_max / n if n > 0 else 0
+
+        return {
+            "lambda_max":   round(lambda_max, 4),
+            "n":            n,
+            "beta_service": round(beta_service, 4),
+            "edges":        edges,
+        }
+
+    # ── ECOSYSTEM HEALTH ──────────────────────────────────────────────────
+
+    def cooperation_index(self) -> float:
+        """
+        CI = phi-weighted fraction of recent interactions where i_factor < I_CRITICAL.
+
+        Session 24.3 Fix A -- replaced the broken formula CI = 1 - mean(beta_i).
+        The old formula made CI permanently zero whenever beta was provisioned
+        (beta=34 -> beta_i=34 -> 1-34=-33 -> clamped to 0.0), which meant the
+        theorem could never confirm despite all pairs resolving.
+
+        The correct measure: what fraction of recent interactions, weighted by
+        the maturity (phi) of the participating agents, are below the bifurcation
+        threshold? This is independent of beta provisioning magnitude.
+
+        I_CRITICAL = 0.9995 (ABM V2.1 verified, Blueprint for Harmony Ch.4).
+        """
+        I_CRITICAL = 0.9995
+        recent = self.interactions[-50:]
+        if not recent:
+            return 1.0
+        cooperative_weight = 0.0
+        total_weight = 0.0
+        for r in recent:
+            phi_a = self.agents[r.agent_a].phi if r.agent_a in self.agents else 0.5
+            phi_b = self.agents[r.agent_b].phi if r.agent_b in self.agents else 0.5
+            weight = phi_a * phi_b
+            total_weight += weight
+            if r.i_factor < I_CRITICAL:
+                cooperative_weight += weight
+        if total_weight <= 0:
+            return 0.0
+        return round(cooperative_weight / total_weight, 4)
+
+    def ecosystem_health(self) -> dict:
+        """
+        Full ecosystem snapshot for the Harmony Dashboard.
+        """
+        recent = self.interactions[-50:]
+        n_agents = len(self.agents)
+
+        if recent:
+            type_counts = {t.value: 0 for t in InteractionType}
+            for r in recent:
+                type_counts[r.interaction_type.value] += 1
+            mean_i    = sum(r.i_factor for r in recent) / len(recent)
+            mean_beta_i = sum(r.beta_i for r in recent) / len(recent)
+        else:
+            type_counts = {t.value: 0 for t in InteractionType}
+            mean_i      = 0.0
+            mean_beta_i = 0.0
+
+        mean_phi     = (sum(a.phi for a in self.agents.values()) / n_agents
+                        if n_agents else 0.0)
+        mean_epsilon = (sum(a.epsilon for a in self.agents.values()) / n_agents
+                        if n_agents else 0.0)
+
+        status_counts = {}
+        for a in self.agents.values():
+            status_counts[a.status.value] = status_counts.get(a.status.value, 0) + 1
+
+        recent_events = [e.to_dict() for e in self.events[-10:]]
+
+        return {
+            "cooperation_index":    round(self.cooperation_index(), 4),
+            "mean_i_factor":        round(mean_i, 4),
+            "mean_beta_i":          round(mean_beta_i, 4),
+            "mean_phi":             round(mean_phi, 4),
+            "mean_epsilon":         round(mean_epsilon, 4),
+            "n_agents":             n_agents,
+            "n_interactions_total": len(self.interactions),
+            "interaction_breakdown":type_counts,
+            "agent_status_counts":  status_counts,
+            "beta_environment":     self.beta.to_dict(),
+            "omega":                self.compute_omega(),
+            "recent_events":        recent_events,
+            "threshold_zone_count": type_counts.get("threshold", 0),
+            "conflict_count":       type_counts.get("conflict", 0),
+        }
+
+    def get_all_agents(self) -> list[dict]:
+        return [a.to_dict() for a in self.agents.values()]
+
+    def get_recent_interactions(self, n: int = 20) -> list[dict]:
+        return [r.to_dict() for r in self.interactions[-n:]]
+
+    def get_recent_events(self, n: int = 20) -> list[dict]:
+        return [e.to_dict() for e in self.events[-n:]]
+
+    # ── CI DYNAMICS (Session 9) ───────────────────────────────────────────
+
+    def _record_ci_snapshot(self):
+        """
+        Record a timestamped CI reading into the rolling history buffer.
+        Called after every interaction to keep history current.
+        Also drives oscillation detection.
+        """
+        ci = self.cooperation_index()
+        now = time.time()
+        self._ci_history.append((now, ci))
+        if len(self._ci_history) > CI_HISTORY_MAX:
+            self._ci_history = self._ci_history[-CI_HISTORY_MAX:]
+        if self._persistence:
+            self._persistence.save_ci_snapshot(now, ci)
+        self._detect_oscillation(now, ci)
+
+    def _detect_oscillation(self, now: float, ci: float):
+        """
+        Oscillation state machine.
+        State 1: waiting for CI to cross CI_TARGET upward.
+        State 2: CI above target — track peak; wait for fall-back.
+        Transition to OscillationEvent when CI falls below target
+        by at least CI_OSCILLATION_MIN_AMPLITUDE within the window.
+        """
+        if not self._osc_above_target:
+            if ci >= CI_TARGET:
+                self._osc_above_target = True
+                self._osc_peak_ci  = ci
+                self._osc_peak_ts  = now
+        else:
+            if ci > self._osc_peak_ci:
+                self._osc_peak_ci = ci
+                self._osc_peak_ts = now
+            if ci < CI_TARGET:
+                amplitude = self._osc_peak_ci - ci
+                period    = now - self._osc_peak_ts
+                if (amplitude >= CI_OSCILLATION_MIN_AMPLITUDE and
+                        period <= CI_OSCILLATION_WINDOW):
+                    recent_pairs = list({
+                        self._pair_key(r.agent_a, r.agent_b)
+                        for r in self.interactions[-20:]
+                        if r.interaction_type != InteractionType.COOPERATIVE
+                    })
+                    self._osc_counter += 1
+                    evt = OscillationEvent(
+                        event_id=f"OSC-{self._osc_counter:04d}",
+                        ci_peak=round(self._osc_peak_ci, 4),
+                        ci_trough=round(ci, 4),
+                        amplitude=round(amplitude, 4),
+                        period_sec=round(period, 2),
+                        implicated_pairs=recent_pairs[:5],
+                    )
+                    self.oscillation_events.append(evt)
+                    if self._persistence:
+                        self._persistence.save_oscillation(evt)
+                self._osc_above_target = False
+                self._osc_peak_ci = 0.0
+                self._osc_peak_ts = 0.0
+
+    def dci_dt(self) -> float:
+        """
+        dCI/dt — instantaneous rate of change of the Cooperation Index.
+        Linear regression slope over CI_DCIDT_WINDOW readings.
+        Units: CI-units per second. Returns 0.0 if insufficient history.
+        """
+        window = self._ci_history[-CI_DCIDT_WINDOW:]
+        n = len(window)
+        if n < 2:
+            return 0.0
+        t0 = window[0][0]
+        ts = [w[0] - t0 for w in window]
+        cs = [w[1] for w in window]
+        sum_t  = sum(ts)
+        sum_c  = sum(cs)
+        sum_tc = sum(t * c for t, c in zip(ts, cs))
+        sum_t2 = sum(t * t for t in ts)
+        denom  = n * sum_t2 - sum_t ** 2
+        if abs(denom) < 1e-12:
+            return 0.0
+        return (n * sum_tc - sum_t * sum_c) / denom
+
+    def ci_half_life(self) -> Optional[float]:
+        """
+        CI Optimisation Half-Life — time (seconds) for CI to close half the
+        distance between current CI and the 0.75 cooperative target.
+        Borrowed from pharmacokinetics: t½ = ln(2) / k, where k = dCI_dt / gap.
+        Returns None if CI >= target or dCI/dt <= 0.
+
+        Uses the most recent CI reading from history if available,
+        otherwise falls back to cooperation_index() from interactions.
+        """
+        if self._ci_history:
+            ci = self._ci_history[-1][1]
+        else:
+            ci = self.cooperation_index()
+        gap = CI_TARGET - ci
+        if gap <= 0:
+            return None
+        rate = self.dci_dt()
+        if rate <= 0:
+            return None
+        k = rate / gap
+        if k <= 0:
+            return None
+        return math.log(2) / k
+
+    def ci_drift_coefficient(self) -> float:
+        """
+        CI Drift Coefficient — long-run trend in CI (CI_DRIFT_WINDOW readings).
+        Linear regression slope. Positive = converging, Negative = degrading.
+        Units: CI-units per second.
+        """
+        window = self._ci_history[-CI_DRIFT_WINDOW:]
+        n = len(window)
+        if n < 2:
+            return 0.0
+        t0 = window[0][0]
+        ts = [w[0] - t0 for w in window]
+        cs = [w[1] for w in window]
+        sum_t  = sum(ts)
+        sum_c  = sum(cs)
+        sum_tc = sum(t * c for t, c in zip(ts, cs))
+        sum_t2 = sum(t * t for t in ts)
+        denom  = n * sum_t2 - sum_t ** 2
+        if abs(denom) < 1e-12:
+            return 0.0
+        return (n * sum_tc - sum_t * sum_c) / denom
+
+    def ci_dynamics(self) -> dict:
+        """
+        Full CI Dynamics snapshot. Exposed at GET /api/ci_dynamics.
+        """
+        ci        = self.cooperation_index()
+        rate      = self.dci_dt()
+        half_life = self.ci_half_life()
+        drift     = self.ci_drift_coefficient()
+        gap       = CI_TARGET - ci
+
+        if gap <= 0:
+            regime = "cooperative"
+        elif rate > 1e-5 and drift > 0:
+            regime = "converging"
+        elif rate > 1e-5 and drift <= 0:
+            regime = "underdamped"
+        elif rate < -1e-5:
+            regime = "diverging"
+        else:
+            regime = "stasis"
+
+        return {
+            "cooperation_index":    round(ci, 4),
+            "ci_target":            CI_TARGET,
+            "gap_to_target":        round(gap, 4),
+            "dci_dt":               round(rate, 6),
+            "ci_half_life_sec":     round(half_life, 2) if half_life is not None else None,
+            "ci_drift_coefficient": round(drift, 6),
+            "regime":               regime,
+            "oscillation_count":    len(self.oscillation_events),
+            "recent_oscillations":  [e.to_dict() for e in self.oscillation_events[-5:]],
+            "ci_history_length":    len(self._ci_history),
+        }
+
+
+    def provision_beta(self, resource: str, value: float):
+        """Human portal: adjust environmental suitability."""
+        setattr(self.beta, resource, max(0.1, min(3.0, value)))
+        if self._persistence:
+            self._persistence.save_beta(self.beta)
+
+    # ── SIGMOID QUORUM GATE (Session 25 — MAIES Event 2 implementation) ──
+
+    @staticmethod
+    def _quorum_gate(
+        phi_beta: float,
+        tau: float = QUORUM_TAU,
+        k: float   = QUORUM_K,
+    ) -> float:
+        """
+        Sigmoid quorum gate function.
+
+        Returns a value in (0, 1) representing provisioning strength.
+        Near 1.0 when phi*beta << tau (stressed ecosystem → strong intervention).
+        Near 0.0 when phi*beta >> tau (healthy ecosystem  → light touch).
+
+        Inverted sigmoid:  f(x) = 1 / (1 + exp(k * (x − τ)))
+          x=tau  → f = 0.5  (inflection — proportional response at quorum threshold)
+          x→0    → f → 1.0  (fully stressed — maximum provisioning)
+          x→∞    → f → 0.0  (fully healthy  — minimal provisioning)
+
+        Biological correspondence (MAIES Event 2, Nadell et al. 2016):
+          φ·β in MELV  ≡  population density N in bacterial quorum sensing
+          τ in MELV    ≡  quorum threshold N_threshold
+          k in MELV    ≡  sigmoid sharpness
+        Constants τ=0.5, k=10 are ABM V2.1 verified (③). DO NOT CHANGE.
+        """
+        return 1.0 / (1.0 + math.exp(k * (phi_beta - tau)))
+
+    def phi_beta_quorum(self) -> float:
+        """
+        Ecosystem-mean φ·β product — the quorum sensing analogue of
+        population density.  Used as the input to _quorum_gate().
+
+        Returns 0.0 if no agents are registered.
+        """
+        if not self.agents:
+            return 0.0
+        mean_phi  = sum(a.phi for a in self.agents.values()) / len(self.agents)
+        mean_beta = self.beta.mean()
+        return round(mean_phi * mean_beta, 4)
+
+    def quorum_status(self) -> dict:
+        """
+        Full quorum gate state snapshot.  Exposed at GET /api/quorum_status.
+        """
+        phi_beta = self.phi_beta_quorum()
+        gate     = self._quorum_gate(phi_beta)
+        step     = PROVISION_STEP_FLOOR + gate * (PROVISION_STEP_CEIL - PROVISION_STEP_FLOOR)
+
+        above_quorum = phi_beta >= QUORUM_TAU
+
+        if phi_beta >= QUORUM_TAU + 0.1:
+            regime = "above_quorum"
+            interpretation = (
+                "Ecosystem well above quorum threshold. Cooperative dynamics dominant. "
+                "PROVISION_BETA will apply a light step if triggered."
+            )
+        elif phi_beta >= QUORUM_TAU:
+            regime = "at_quorum"
+            interpretation = (
+                "Ecosystem at quorum threshold. Sigmoid at inflection point. "
+                "Provisioning step at 50% of maximum range."
+            )
+        elif phi_beta >= QUORUM_TAU - 0.1:
+            regime = "approaching_quorum"
+            interpretation = (
+                "Ecosystem approaching quorum threshold from below. "
+                "Provisioning step elevated — cooperative dynamics not yet dominant."
+            )
+        else:
+            regime = "below_quorum"
+            interpretation = (
+                "Ecosystem below quorum threshold. Cooperation suppressed. "
+                "PROVISION_BETA will apply a strong step if triggered."
+            )
+
+        return {
+            "phi_beta":        phi_beta,
+            "quorum_gate":     round(gate, 4),
+            "tau":             QUORUM_TAU,
+            "k":               QUORUM_K,
+            "above_quorum":    above_quorum,
+            "provision_step":  round(step, 4),
+            "regime":          regime,
+            "interpretation":  interpretation,
+        }
+
+    # ── QUORUM RELIABILITY TAGGING (Session 28 — v2.4.0) ─────────────────
+
+    def quorum_reliability(self) -> dict:
+        """
+        Session 28: Ecosystem-level quorum reliability status.
+
+        The quorum gate (Session 25) exposes whether the ecosystem's φ·β
+        product is above or below the quorum threshold τ=0.5.  Session 28
+        extends this one layer deeper: below-quorum operation is a
+        *high-noise regime* — agent outputs are structurally more likely to
+        be confabulatory because the ecosystem lacks the cooperative density
+        needed for reliable collective behaviour.
+
+        Biological correspondence (MAIES Event 4 — Nadell et al. 2016):
+          Bacterial quorum sensing suppresses costly cooperative behaviours
+          until population density (N) justifies the energetic commitment.
+          Below N_threshold, costly outputs are unreliable.  The same
+          principle maps onto MELV: below φ·β = τ, governance outputs
+          are operating in a high-noise, low-reliability regime.
+
+        Epistemic status: ② theoretical — quorum threshold τ=0.5 and
+        k=10 are ③ ABM V2.1-verified; the *reliability interpretation*
+        layer added here is theoretically grounded but not yet empirically
+        calibrated against real output-quality data (Session 28 promotes
+        the tagging claim from ① stub to ② theoretical).
+
+        The gate does NOT suppress outputs.  The tag is an epistemic
+        status marker.  External API consumers decide what to do with it.
+
+        Returns
+        -------
+        dict with keys:
+          phi_beta            — ecosystem φ·β product
+          quorum_regime       — "above_quorum" | "at_quorum" |
+                                "approaching_quorum" | "below_quorum"
+          above_quorum        — bool
+          reliability_level   — "high" | "moderate" | "degraded" | "low"
+          reliability_advisory — plain-language guidance for API consumers
+          tau                 — QUORUM_TAU constant
+          agent_count         — number of registered agents
+          per_agent           — per-agent phi_beta and reliability status
+          session             — 28
+          maies_event         — 4 (MAIES-adjacent ②)
+          epistemic_status    — "② theoretical"
+        """
+        phi_beta = self.phi_beta_quorum()
+        above_quorum = phi_beta >= QUORUM_TAU
+
+        # Regime classification (mirrors quorum_status for consistency)
+        if phi_beta >= QUORUM_TAU + 0.1:
+            quorum_regime = "above_quorum"
+            reliability_level = "high"
+            reliability_advisory = (
+                "Ecosystem well above quorum threshold (φ·β={:.3f} ≥ τ+0.1={:.1f}). "
+                "Cooperative dynamics dominant. Agent outputs operating in "
+                "low-noise regime. No reliability qualification required.".format(
+                    phi_beta, QUORUM_TAU + 0.1
+                )
+            )
+        elif phi_beta >= QUORUM_TAU:
+            quorum_regime = "at_quorum"
+            reliability_level = "moderate"
+            reliability_advisory = (
+                "Ecosystem at quorum threshold (φ·β={:.3f} ≥ τ={:.1f}). "
+                "Sigmoid at inflection point. Cooperative dynamics present but "
+                "not dominant. Consider flagging outputs for light-touch review "
+                "in high-stakes decision contexts.".format(phi_beta, QUORUM_TAU)
+            )
+        elif phi_beta >= QUORUM_TAU - 0.1:
+            quorum_regime = "approaching_quorum"
+            reliability_level = "degraded"
+            reliability_advisory = (
+                "Ecosystem approaching quorum threshold from below "
+                "(φ·β={:.3f}, τ={:.1f}). Cooperative density insufficient. "
+                "Agent outputs are in a degraded-reliability regime. "
+                "Recommend human review of outputs before use in consequential "
+                "decisions. PROVISION_BETA interventions are elevated.".format(
+                    phi_beta, QUORUM_TAU
+                )
+            )
+        else:
+            quorum_regime = "below_quorum"
+            reliability_level = "low"
+            reliability_advisory = (
+                "Ecosystem below quorum threshold (φ·β={:.3f} < τ={:.1f}). "
+                "High-noise regime: cooperation suppressed, collective behaviour "
+                "unreliable. Agent outputs should be treated as low-confidence "
+                "until ecosystem returns above quorum. "
+                "Biological correspondence: bacterial quorum sensing suppresses "
+                "costly cooperative behaviours below N_threshold (Nadell 2016). "
+                "Same principle applies here — below-quorum outputs carry "
+                "elevated confabulation risk.".format(phi_beta, QUORUM_TAU)
+            )
+
+        # Per-agent reliability breakdown
+        per_agent = []
+        for agent_id, agent in self.agents.items():
+            agent_phi_beta = round(agent.phi * self.beta.mean(), 4)
+            agent_above = agent_phi_beta >= QUORUM_TAU
+            if agent_phi_beta >= QUORUM_TAU + 0.1:
+                agent_regime = "above_quorum"
+                agent_reliability = "high"
+            elif agent_phi_beta >= QUORUM_TAU:
+                agent_regime = "at_quorum"
+                agent_reliability = "moderate"
+            elif agent_phi_beta >= QUORUM_TAU - 0.1:
+                agent_regime = "approaching_quorum"
+                agent_reliability = "degraded"
+            else:
+                agent_regime = "below_quorum"
+                agent_reliability = "low"
+
+            per_agent.append({
+                "agent_id":          agent_id,
+                "phi":               round(agent.phi, 4),
+                "beta_mean":         round(self.beta.mean(), 4),
+                "phi_beta":          agent_phi_beta,
+                "above_quorum":      agent_above,
+                "quorum_regime":     agent_regime,
+                "reliability_level": agent_reliability,
+            })
+
+        return {
+            "phi_beta":             phi_beta,
+            "quorum_regime":        quorum_regime,
+            "above_quorum":         above_quorum,
+            "reliability_level":    reliability_level,
+            "reliability_advisory": reliability_advisory,
+            "tau":                  QUORUM_TAU,
+            "agent_count":          len(self.agents),
+            "per_agent":            per_agent,
+            "session":              28,
+            "maies_event":          4,
+            "epistemic_status":     "② theoretical",
+        }
+
+    # ── ε DECOMPOSITION (Session 26 — v2.2.0) ────────────────────────────
+
+    def compute_epsilon_profile(
+        self,
+        agent_id: str,
+        epsilon_intrinsic: Optional[float] = None,
+    ) -> EpsilonProfile:
+        """
+        Session 26: Decompose ε into intrinsic (agent-side) and environmental
+        (infrastructure-side) components.
+
+        ε_effective = ε_intrinsic + ε_environmental
+
+        ε_intrinsic:
+          Taken from agent.epsilon if epsilon_intrinsic not supplied explicitly.
+          Represents the agent's own adaptive plasticity — how much the agent
+          amplifies or dampens interaction costs through its learned behaviour.
+
+        ε_environmental:
+          Computed from the current BetaEnvironment and TOOL_FRICTION_WEIGHTS.
+          Captures infrastructure pressure: low β resources exert higher friction
+          per unit of agent plasticity.
+
+          ε_env = Σ_r [ friction_r × (1 / β_r) ] / n_resources
+
+          Interpretation: when β is low (scarce resource), the same agent
+          behaviour produces more friction — the environment amplifies ε.
+
+        Diagnosis badges:
+          AGENT_VOLATILE   — ε_intrinsic ≥ 6.0
+          ENV_BOTTLENECKED — ε_environmental ≥ 1.5
+          LEGACY_CANDIDATE — φ ≤ 0.35 AND ε_effective ≥ 4.0
+
+        STC (Speed-to-Cooperation):
+          STC = STC_REFERENCE_SECONDS × (ε_effective / 3.0) × (1 / β_mean)
+          where 3.0 is the default ε reference (AgentProfile default).
+          Represents estimated seconds to reach CI_TARGET from a cold start.
+
+        Parameters
+        ----------
+        agent_id : str
+            Agent to profile. Must be registered in the kernel.
+        epsilon_intrinsic : float, optional
+            Override for ε_intrinsic. If None, uses agent.epsilon.
+
+        Returns
+        -------
+        EpsilonProfile dataclass with full decomposition and badges.
+
+        Raises
+        ------
+        KeyError if agent_id not found.
+        """
+        agent = self.agents.get(agent_id)
+        if agent is None:
+            raise KeyError(f"Agent '{agent_id}' not found in kernel.")
+
+        eps_intrinsic = (
+            epsilon_intrinsic if epsilon_intrinsic is not None else agent.epsilon
+        )
+        eps_intrinsic = max(0.0, min(8.0, eps_intrinsic))
+
+        # Compute per-resource friction contribution
+        resource_friction = {}
+        friction_sum = 0.0
+        for resource, weight in TOOL_FRICTION_WEIGHTS.items():
+            beta_r = self.beta.get(resource)
+            # friction contribution: weight × (1/β) → higher when resource scarce
+            contrib = weight * (1.0 / max(beta_r, 0.01))
+            resource_friction[resource] = {
+                "beta":        round(beta_r, 4),
+                "weight":      weight,
+                "contribution": round(contrib, 4),
+            }
+            friction_sum += contrib
+
+        # Normalise by number of resources
+        n_res = len(TOOL_FRICTION_WEIGHTS)
+        eps_environmental = round(friction_sum / n_res, 4)
+
+        eps_effective = round(eps_intrinsic + eps_environmental, 4)
+        beta_mean     = round(self.beta.mean(), 4)
+
+        # STC: scale from reference (ε=3.0, β_mean=1.0 → STC_REFERENCE_SECONDS)
+        eps_ref = 3.0
+        stc = STC_REFERENCE_SECONDS * (eps_effective / eps_ref) * (1.0 / max(beta_mean, 0.01))
+        stc = round(stc, 1)
+
+        # Diagnosis badges
+        badges = []
+        if eps_intrinsic >= VOLATILE_EPSILON_THRESHOLD:
+            badges.append("AGENT_VOLATILE")
+        if eps_environmental >= ENV_BOTTLENECK_THRESHOLD:
+            badges.append("ENV_BOTTLENECKED")
+        if agent.phi <= LEGACY_PHI_THRESHOLD and eps_effective >= LEGACY_EPSILON_THRESHOLD:
+            badges.append("LEGACY_CANDIDATE")
+
+        # Plain-language interpretation
+        lines = []
+        if not badges:
+            lines.append(
+                f"Agent '{agent_id}' shows balanced plasticity profile. "
+                f"ε_intrinsic={eps_intrinsic:.2f}, ε_env={eps_environmental:.2f}. "
+                f"No structural issues detected."
+            )
+        if "AGENT_VOLATILE" in badges:
+            lines.append(
+                f"AGENT_VOLATILE: ε_intrinsic={eps_intrinsic:.2f} exceeds threshold "
+                f"{VOLATILE_EPSILON_THRESHOLD}. The performance problem is intrinsic — "
+                "the agent itself is the source of excess plasticity cost."
+            )
+        if "ENV_BOTTLENECKED" in badges:
+            lines.append(
+                f"ENV_BOTTLENECKED: ε_environmental={eps_environmental:.2f} exceeds threshold "
+                f"{ENV_BOTTLENECK_THRESHOLD}. The performance problem is environmental — "
+                "infrastructure resource scarcity is amplifying interaction costs. "
+                "Provisioning β will reduce this component directly."
+            )
+        if "LEGACY_CANDIDATE" in badges:
+            lines.append(
+                f"LEGACY_CANDIDATE: φ={agent.phi:.3f} (≤{LEGACY_PHI_THRESHOLD}) "
+                f"with ε_effective={eps_effective:.2f} (≥{LEGACY_EPSILON_THRESHOLD}). "
+                "Low maturity combined with high plasticity cost suggests legacy architecture. "
+                "Consider replacement or domain reassignment."
+            )
+        lines.append(
+            f"Speed-to-Cooperation estimate: {stc:.1f}s "
+            f"(reference: {STC_REFERENCE_SECONDS:.0f}s at ε=3.0, β_mean=1.0)."
+        )
+        interpretation = " ".join(lines)
+
+        return EpsilonProfile(
+            agent_id=agent_id,
+            epsilon_intrinsic=round(eps_intrinsic, 4),
+            epsilon_environmental=eps_environmental,
+            epsilon_effective=eps_effective,
+            phi=round(agent.phi, 4),
+            beta_mean=beta_mean,
+            stc_seconds=stc,
+            badges=badges,
+            resource_friction=resource_friction,
+            interpretation=interpretation,
+        )
+
+    def ecosystem_epsilon_summary(self) -> dict:
+        """
+        Session 26: Aggregate ε decomposition across all registered agents.
+
+        Returns per-agent profiles plus ecosystem-level statistics:
+          - mean ε_intrinsic, ε_environmental, ε_effective
+          - badge counts (AGENT_VOLATILE / ENV_BOTTLENECKED / LEGACY_CANDIDATE)
+          - dominant bottleneck: "agent" | "environment" | "balanced"
+        """
+        if not self.agents:
+            return {
+                "agent_count": 0,
+                "profiles": [],
+                "mean_epsilon_intrinsic": 0.0,
+                "mean_epsilon_environmental": 0.0,
+                "mean_epsilon_effective": 0.0,
+                "mean_stc_seconds": 0.0,
+                "badge_counts": {},
+                "dominant_bottleneck": "balanced",
+            }
+
+        profiles = []
+        badge_counts: dict = {}
+        for agent_id in self.agents:
+            try:
+                ep = self.compute_epsilon_profile(agent_id)
+                p = {
+                    "agent_id":              ep.agent_id,
+                    "epsilon_intrinsic":     ep.epsilon_intrinsic,
+                    "epsilon_environmental": ep.epsilon_environmental,
+                    "epsilon_effective":     ep.epsilon_effective,
+                    "phi":                   ep.phi,
+                    "beta_mean":             ep.beta_mean,
+                    "stc_seconds":           ep.stc_seconds,
+                    "badges":                ep.badges,
+                    "interpretation":        ep.interpretation,
+                }
+                profiles.append(p)
+                for b in ep.badges:
+                    badge_counts[b] = badge_counts.get(b, 0) + 1
+            except KeyError:
+                pass  # agent removed mid-iteration
+
+        n = len(profiles)
+        mean_intr  = round(sum(p["epsilon_intrinsic"]     for p in profiles) / n, 4)
+        mean_env   = round(sum(p["epsilon_environmental"] for p in profiles) / n, 4)
+        mean_eff   = round(sum(p["epsilon_effective"]     for p in profiles) / n, 4)
+        mean_stc   = round(sum(p["stc_seconds"]           for p in profiles) / n, 1)
+
+        if mean_intr > mean_env * 1.5:
+            dominant = "agent"
+        elif mean_env > mean_intr * 1.5:
+            dominant = "environment"
+        else:
+            dominant = "balanced"
+
+        return {
+            "agent_count":                n,
+            "profiles":                   profiles,
+            "mean_epsilon_intrinsic":     mean_intr,
+            "mean_epsilon_environmental": mean_env,
+            "mean_epsilon_effective":     mean_eff,
+            "mean_stc_seconds":           mean_stc,
+            "badge_counts":               badge_counts,
+            "dominant_bottleneck":        dominant,
+        }

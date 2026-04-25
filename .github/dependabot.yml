@@ -1,0 +1,45 @@
+# .github/dependabot.yml
+# Weekly automated dependency scanning for AIOS / MELVcore.
+# Alerts on critical CVEs in fastapi, pydantic, anthropic, httpx, and related packages.
+# Session 21.2 · P3b
+
+version: 2
+
+updates:
+  # Python dependencies (pip)
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Africa/Johannesburg"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "security"
+    # Alert on these critical packages immediately
+    ignore: []
+    # Prioritise security patches for core dependencies
+    groups:
+      fastapi-stack:
+        patterns:
+          - "fastapi"
+          - "uvicorn"
+          - "starlette"
+          - "pydantic"
+          - "httpx"
+      anthropic-sdk:
+        patterns:
+          - "anthropic"
+      langgraph-stack:
+        patterns:
+          - "langgraph"
+          - "langchain*"
+
+  # GitHub Actions (if added later)
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"

@@ -1,0 +1,60 @@
+# ── Runtime database ──────────────────────────────────────────────────────
+*.db
+*.db-shm
+*.db-wal
+aios_state.db
+
+# ── Environment / secrets ─────────────────────────────────────────────────
+.env
+.env.*
+*.env
+secrets.json
+
+# ── Python ────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+*.whl
+
+# ── Virtual environments ──────────────────────────────────────────────────
+venv/
+.venv/
+env/
+.env/
+
+# ── Testing / coverage ────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+*.xml
+coverage.xml
+
+# ── IDE / OS ──────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ── Node (dashboard tooling) ──────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+
+# ── Logs ──────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# -- Local tooling (not project code) --
+.local/
+.npm/
+.config/uv/
+.npmrc
+.wget-hsts
