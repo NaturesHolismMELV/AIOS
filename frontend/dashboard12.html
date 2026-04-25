@@ -510,7 +510,7 @@
     </div>
     <div>
       <div class="logo-name">AIOS</div>
-      <div class="logo-sub">Harmony Dashboard · MELVcore v2.2.0 · Session 26</div>
+      <div class="logo-sub">Harmony Dashboard · MELVcore v2.5.0 · Session 29</div>
     </div>
   </div>
 
@@ -567,12 +567,14 @@
   <div class="nav-item" data-target="sec-quorum" style="margin-top:4px"><div class="nav-dot" style="background:#00cfff"></div>Quorum Status <span style="font-family:'Space Mono',monospace;font-size:12px;color:#00cfff;margin-left:auto">S25</span></div>
   <div class="nav-item" data-target="sec-epsilon-decomp" style="margin-top:4px"><div class="nav-dot" style="background:#f59e0b"></div>ε Decomposition <span style="font-family:'Space Mono',monospace;font-size:12px;color:#f59e0b;margin-left:auto">S26</span></div>
   <div class="nav-item" data-target="sec-oxpecker" style="margin-top:4px"><div class="nav-dot" style="background:#4ade80"></div>Oxpecker Activity <span style="font-family:'Space Mono',monospace;font-size:12px;color:#4ade80;margin-left:auto">S27</span></div>
+  <div class="nav-item" data-target="sec-quorum-reliability" style="margin-top:4px"><div class="nav-dot" style="background:#c084fc"></div>Quorum Reliability <span style="font-family:'Space Mono',monospace;font-size:12px;color:#c084fc;margin-left:auto">S28</span></div>
+  <div class="nav-item" data-target="sec-epsilon-arch" style="margin-top:4px"><div class="nav-dot" style="background:#fb923c"></div>ε Architectural <span style="font-family:'Space Mono',monospace;font-size:12px;color:#fb923c;margin-left:auto">S29</span></div>
   <div class="nav-item" data-target="sec-persistence" style="margin-top:4px"><div class="nav-dot" style="background:#f59e0b"></div>Persistence <span style="font-family:'Space Mono',monospace;font-size:12px;color:#f59e0b;margin-left:auto">S12</span></div>
   <div class="nav-item" data-target="sec-gateway" style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px"><div class="nav-dot" style="background:#a78bfa"></div>Gateway API</div>
 
   <div class="sidebar-foot">
-    MELVcore v2.2.0<br>
-    Sessions 1–26 complete<br>
+    MELVcore v2.5.0<br>
+    Sessions 1–29 complete<br>
     Blueprint for Harmony<br>
     © Ecotao Enterprises<br>
     L.W. Evans
@@ -2013,17 +2015,17 @@
   </div>
 </section>
 
-<!-- ── SESSION 26: ε DECOMPOSITION ───────────────────────────────────── -->
+<!-- ── SESSION 26 + 29: ε DECOMPOSITION ─────────────────────────────────── -->
 <section id="sec-epsilon-decomp" class="panel" style="display:none">
   <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
     <span style="font-size:18px;font-weight:700">ε Decomposition</span>
     <span style="font-family:'Space Mono',monospace;font-size:12px;color:#f59e0b;background:rgba(245,158,11,.12);padding:2px 8px;border-radius:3px">S26</span>
+    <span style="font-family:'Space Mono',monospace;font-size:12px;color:#fb923c;background:rgba(251,146,60,.12);padding:2px 8px;border-radius:3px">S29</span>
   </div>
   <div style="font-size:13px;color:var(--text-dim);margin-bottom:20px;line-height:1.6">
-    <strong style="color:var(--text)">ε_effective = ε_intrinsic + ε_environmental</strong><br>
-    The diagnostic question no other framework asks: is the performance problem intrinsic to the agent,
-    or a function of the infrastructure it operates in?
-    ε_environmental is computed from live β values and tool friction weights (② theoretical).
+    <strong style="color:var(--text)">ε_effective = ε_intrinsic + ε_ecosystem</strong> &nbsp;(master equation — unchanged)<br>
+    Three scalars. The diagnostic question no other framework asks: is the problem the agent, infrastructure, or architecture?<br>
+    <span style="color:#fb923c">ε_architectural</span> is a <em>boundary condition</em> — not in the master equation. Provisioning β is futile against it (MAIES Event 5 · Grok).
   </div>
 
   <!-- Ecosystem summary cards -->
@@ -2034,14 +2036,19 @@
       <div style="font-size:11px;color:var(--text-dim);margin-top:2px">agent-side</div>
     </div>
     <div class="card">
-      <div class="card-label">MEAN ε ENVIRONMENTAL</div>
+      <div class="card-label">MEAN ε ECOSYSTEM</div>
       <div style="font-size:24px;font-weight:700;font-family:'Space Mono',monospace;color:#f5a623" id="ep-mean-env">—</div>
-      <div style="font-size:11px;color:var(--text-dim);margin-top:2px">infrastructure-side</div>
+      <div style="font-size:11px;color:var(--text-dim);margin-top:2px">infrastructure-side (live)</div>
     </div>
     <div class="card">
       <div class="card-label">MEAN ε EFFECTIVE</div>
       <div style="font-size:24px;font-weight:700;font-family:'Space Mono',monospace" id="ep-mean-eff">—</div>
-      <div style="font-size:11px;color:var(--text-dim);margin-top:2px">intrinsic + environmental</div>
+      <div style="font-size:11px;color:var(--text-dim);margin-top:2px">intrinsic + ecosystem</div>
+    </div>
+    <div class="card">
+      <div class="card-label">MEAN ε ARCHITECTURAL</div>
+      <div style="font-size:24px;font-weight:700;font-family:'Space Mono',monospace;color:#fb923c" id="ep-mean-arch">—</div>
+      <div style="font-size:11px;color:var(--text-dim);margin-top:2px">boundary condition (static)</div>
     </div>
     <div class="card">
       <div class="card-label">DOMINANT BOTTLENECK</div>
@@ -2071,6 +2078,10 @@
         <span style="font-size:11px;font-weight:700;color:var(--thresh);font-family:'Space Mono',monospace">LEGACY_CANDIDATE</span>
         <span style="font-size:18px;font-weight:700;color:var(--thresh);font-family:'Space Mono',monospace" id="ep-badge-legacy">0</span>
       </div>
+      <div style="display:flex;align-items:center;gap:8px;background:rgba(251,146,60,.12);border:1px solid #fb923c;border-radius:4px;padding:6px 12px">
+        <span style="font-size:11px;font-weight:700;color:#fb923c;font-family:'Space Mono',monospace">ARCH_BOUNDARY_HIGH</span>
+        <span style="font-size:18px;font-weight:700;color:#fb923c;font-family:'Space Mono',monospace" id="ep-badge-arch">0</span>
+      </div>
     </div>
   </div>
 
@@ -2084,14 +2095,15 @@
             <th style="text-align:left;padding:6px 8px;font-weight:600">AGENT</th>
             <th style="text-align:right;padding:6px 8px;font-weight:600">φ</th>
             <th style="text-align:right;padding:6px 8px;font-weight:600">ε intrinsic</th>
-            <th style="text-align:right;padding:6px 8px;font-weight:600">ε env</th>
+            <th style="text-align:right;padding:6px 8px;font-weight:600">ε eco</th>
+            <th style="text-align:right;padding:6px 8px;font-weight:600;color:#fb923c">ε arch</th>
             <th style="text-align:right;padding:6px 8px;font-weight:600">ε eff</th>
             <th style="text-align:right;padding:6px 8px;font-weight:600">STC (s)</th>
             <th style="text-align:left;padding:6px 8px;font-weight:600">BADGES</th>
           </tr>
         </thead>
         <tbody id="ep-tbody">
-          <tr><td colspan="7" style="color:var(--text-dim);padding:12px 8px;text-align:center">Loading…</td></tr>
+          <tr><td colspan="8" style="color:var(--text-dim);padding:12px 8px;text-align:center">Loading…</td></tr>
         </tbody>
       </table>
     </div>
@@ -2191,6 +2203,168 @@
     </div>
   </div>
 </section>
+
+<!-- ── SESSION 28: QUORUM RELIABILITY TAGGING ────────────────────────────── -->
+<section id="sec-quorum-reliability" class="panel" style="display:none">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+    <span style="font-size:18px;font-weight:700">Quorum Reliability</span>
+    <span style="font-family:'Space Mono',monospace;font-size:12px;color:#c084fc;background:rgba(192,132,252,.12);padding:2px 8px;border-radius:3px">S28</span>
+  </div>
+  <div style="font-size:13px;color:var(--text-dim);margin-bottom:20px;line-height:1.6">
+    <strong style="color:var(--text)">Quorum gate as epistemic status marker.</strong><br>
+    Below-quorum = high-noise regime. Agent outputs in this state carry elevated confabulation risk.<br>
+    Biological correspondence: Nadell et al. (2016) — bacterial quorum sensing suppresses costly cooperative
+    behaviours below N<sub>threshold</sub>. Same energetic principle applied to agent output reliability.<br>
+    <span style="color:var(--text-dim);font-size:11px">MAIES Event 4 (MAIES-adjacent ②) · τ=0.5, k=10 are ③ ABM V2.1-verified · epistemic status: ② theoretical</span>
+  </div>
+
+  <!-- Reliability summary cards -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:18px">
+    <div class="card">
+      <div class="card-label">RELIABILITY LEVEL</div>
+      <div style="font-size:22px;font-weight:700;font-family:'Space Mono',monospace;margin-top:4px" id="qr-level">—</div>
+      <div style="font-size:11px;color:var(--text-dim);margin-top:2px">high · moderate · degraded · low</div>
+    </div>
+    <div class="card">
+      <div class="card-label">φ·β (QUORUM DENSITY)</div>
+      <div style="font-size:28px;font-weight:700;font-family:'Space Mono',monospace;color:var(--accent)" id="qr-phi-beta">—</div>
+      <div style="font-size:11px;color:var(--text-dim);margin-top:2px">τ = 0.5</div>
+    </div>
+    <div class="card">
+      <div class="card-label">REGIME</div>
+      <div style="font-size:13px;font-weight:700;font-family:'Space Mono',monospace;margin-top:6px" id="qr-regime">—</div>
+      <div style="font-size:11px;color:var(--text-dim);margin-top:4px" id="qr-above">—</div>
+    </div>
+    <div class="card">
+      <div class="card-label">AGENT COUNT</div>
+      <div style="font-size:28px;font-weight:700;font-family:'Space Mono',monospace;color:var(--coop)" id="qr-agent-count">—</div>
+      <div style="font-size:11px;color:var(--text-dim);margin-top:2px">registered agents</div>
+    </div>
+  </div>
+
+  <!-- Advisory -->
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-label">RELIABILITY ADVISORY</div>
+    <div style="font-size:13px;color:var(--text-dim);margin-top:10px;line-height:1.7;font-family:'Space Mono',monospace;font-size:12px" id="qr-advisory">—</div>
+  </div>
+
+  <!-- Per-agent reliability table -->
+  <div class="card">
+    <div class="card-label" style="margin-bottom:10px">PER-AGENT RELIABILITY</div>
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:12px;font-family:'Space Mono',monospace">
+        <thead>
+          <tr style="color:var(--text-dim);border-bottom:1px solid var(--border)">
+            <th style="text-align:left;padding:6px 8px;font-weight:600">AGENT</th>
+            <th style="text-align:right;padding:6px 8px;font-weight:600">φ</th>
+            <th style="text-align:right;padding:6px 8px;font-weight:600">β mean</th>
+            <th style="text-align:right;padding:6px 8px;font-weight:600">φ·β</th>
+            <th style="text-align:left;padding:6px 8px;font-weight:600">REGIME</th>
+            <th style="text-align:left;padding:6px 8px;font-weight:600">RELIABILITY</th>
+          </tr>
+        </thead>
+        <tbody id="qr-tbody">
+          <tr><td colspan="6" style="color:var(--text-dim);padding:12px 8px;text-align:center">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ── SESSION 29: ε ARCHITECTURAL (BOUNDARY CONDITION) ──────────────────── -->
+<section id="sec-epsilon-arch" class="panel" style="display:none">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+    <span style="font-size:18px;font-weight:700">ε Architectural</span>
+    <span style="font-family:'Space Mono',monospace;font-size:12px;color:#fb923c;background:rgba(251,146,60,.12);padding:2px 8px;border-radius:3px">S29</span>
+  </div>
+  <div style="font-size:13px;color:var(--text-dim);margin-bottom:20px;line-height:1.6">
+    <strong style="color:var(--text)">ε_architectural — fixed boundary condition. NOT in master equation.</strong><br>
+    Computed once from tool category counts. When high, β provisioning is capped and an architectural
+    recommendation fires instead. Provisioning β is futile against a fixed boundary condition.<br>
+    <span style="color:#fb923c">OXPECKER range: 2.8–3.5</span> · ε_ecosystem weight = 0.5 (confirmed) ·
+    <span style="color:var(--text-dim);font-size:11px">MAIES Event 5 · Evans (biological) + Grok (thermodynamic) + Gemini (confirmed) · ③ theoretical</span>
+  </div>
+
+  <!-- Tool category weights reference -->
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-label" style="margin-bottom:10px">ARCH_CATEGORY_WEIGHTS (Session 26 Brief · MAIES Event 5)</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:8px 12px;font-family:'Space Mono',monospace;font-size:12px">
+        <span style="color:var(--coop)">agent_native</span> <span style="color:var(--text)">0.2</span>
+      </div>
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:8px 12px;font-family:'Space Mono',monospace;font-size:12px">
+        <span style="color:var(--coop)">fast_rest</span> <span style="color:var(--text)">0.5</span>
+      </div>
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:8px 12px;font-family:'Space Mono',monospace;font-size:12px">
+        <span style="color:#f5a623">standard</span> <span style="color:var(--text)">1.0</span>
+      </div>
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:8px 12px;font-family:'Space Mono',monospace;font-size:12px">
+        <span style="color:#f59e0b">human_bottlenecked</span> <span style="color:var(--text)">1.5</span>
+      </div>
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:8px 12px;font-family:'Space Mono',monospace;font-size:12px">
+        <span style="color:var(--conflict)">legacy</span> <span style="color:var(--text)">2.0</span>
+      </div>
+    </div>
+    <div style="margin-top:10px;font-size:12px;color:var(--text-dim)">
+      Threshold: ε_architectural &gt; <span style="color:#fb923c;font-weight:700">3.0</span> → ARCH_BOUNDARY_HIGH badge + architectural recommendation fired · β multiplier capped at 0.6
+    </div>
+  </div>
+
+  <!-- ε_architectural assessment tool -->
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-label" style="margin-bottom:10px">COMPUTE ε_ARCHITECTURAL</div>
+    <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px">
+      Enter tool counts by category to compute ε_architectural for an agent.
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:12px">
+      <label style="font-family:'Space Mono',monospace;font-size:12px;color:var(--coop)">
+        agent_native (×0.2)<br>
+        <input id="arch-native" type="number" min="0" value="0"
+          style="width:100%;margin-top:4px;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px;border-radius:3px;font-family:'Space Mono',monospace">
+      </label>
+      <label style="font-family:'Space Mono',monospace;font-size:12px;color:var(--coop)">
+        fast_rest (×0.5)<br>
+        <input id="arch-fastrest" type="number" min="0" value="0"
+          style="width:100%;margin-top:4px;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px;border-radius:3px;font-family:'Space Mono',monospace">
+      </label>
+      <label style="font-family:'Space Mono',monospace;font-size:12px;color:#f5a623">
+        standard (×1.0)<br>
+        <input id="arch-standard" type="number" min="0" value="0"
+          style="width:100%;margin-top:4px;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px;border-radius:3px;font-family:'Space Mono',monospace">
+      </label>
+      <label style="font-family:'Space Mono',monospace;font-size:12px;color:#f59e0b">
+        human_bottlenecked (×1.5)<br>
+        <input id="arch-human" type="number" min="0" value="0"
+          style="width:100%;margin-top:4px;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px;border-radius:3px;font-family:'Space Mono',monospace">
+      </label>
+      <label style="font-family:'Space Mono',monospace;font-size:12px;color:var(--conflict)">
+        legacy (×2.0)<br>
+        <input id="arch-legacy" type="number" min="0" value="0"
+          style="width:100%;margin-top:4px;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px;border-radius:3px;font-family:'Space Mono',monospace">
+      </label>
+    </div>
+    <button onclick="computeArchEpsilon()"
+      style="background:rgba(251,146,60,.15);border:1px solid #fb923c;color:#fb923c;padding:8px 20px;border-radius:3px;font-family:'Space Mono',monospace;font-size:13px;cursor:pointer">
+      COMPUTE ε_ARCHITECTURAL
+    </button>
+    <div id="arch-result" style="margin-top:12px;font-family:'Space Mono',monospace;font-size:13px;display:none">
+      <span style="color:var(--text-dim)">ε_architectural = </span>
+      <span id="arch-result-value" style="font-size:20px;font-weight:700;color:#fb923c">—</span>
+      <span id="arch-result-badge" style="margin-left:12px"></span>
+      <div id="arch-result-rec" style="margin-top:8px;font-size:12px;color:var(--text-dim);line-height:1.6"></div>
+    </div>
+  </div>
+
+  <!-- OXPECKER reference values -->
+  <div style="border:1px solid var(--border);border-radius:4px;padding:12px;font-size:12px;color:var(--text-dim);line-height:1.7">
+    <span style="color:#4ade80;font-weight:700">OXPECKER Reference Values (MAIES Event 5 · Grok)</span><br>
+    ε_architectural ≈ <span style="color:#fb923c">2.8–3.5</span> — recycling touches interrupted state, slow boundaries, human-in-loop<br>
+    ε_ecosystem weight = <span style="color:#4ade80">0.5</span> — fast Haiku call, biological derivation, confirmed<br>
+    Policy: CI drop for OXPECKER with high ε_architectural → prioritise "recycling pause + checkpoint flush" over blind β provisioning<br>
+    ε_intrinsic grows with successful recycling experience — natural thermodynamic loop reducing β reliance
+  </div>
+</section>
+
 
 </main>
 </div>
@@ -2650,9 +2824,10 @@ async function refreshS2526() {
   await fetchQuorumStatus();
   await fetchEpsilonDecomp();
   await updateOxpecker();
+  await fetchQuorumReliability();
 }
 refreshS2526();
-setInterval(refreshS2526, 30000);  // quorum + epsilon + oxpecker — every 30s
+setInterval(refreshS2526, 30000);  // quorum + epsilon + oxpecker + reliability — every 30s
 
 // ── SESSION 25: QUORUM STATUS ─────────────────────────────────────────────
 
@@ -2703,7 +2878,14 @@ async function fetchEpsilonDecomp() {
     document.getElementById('ep-mean-intr').textContent =
       (d.mean_epsilon_intrinsic ?? 0).toFixed(3);
     document.getElementById('ep-mean-env').textContent =
-      (d.mean_epsilon_environmental ?? 0).toFixed(3);
+      (d.mean_epsilon_ecosystem ?? d.mean_epsilon_environmental ?? 0).toFixed(3);
+
+    const archEl = document.getElementById('ep-mean-arch');
+    if (archEl) {
+      const archMean = d.mean_epsilon_architectural ?? 0;
+      archEl.textContent = archMean.toFixed(3);
+      archEl.style.color = archMean > 3.0 ? '#fb923c' : archMean > 1.5 ? '#f5a623' : 'var(--text-dim)';
+    }
 
     const effEl = document.getElementById('ep-mean-eff');
     const eff = d.mean_epsilon_effective ?? 0;
@@ -2727,6 +2909,8 @@ async function fetchEpsilonDecomp() {
     document.getElementById('ep-badge-volatile').textContent = bc['AGENT_VOLATILE'] ?? 0;
     document.getElementById('ep-badge-env').textContent      = bc['ENV_BOTTLENECKED'] ?? 0;
     document.getElementById('ep-badge-legacy').textContent   = bc['LEGACY_CANDIDATE'] ?? 0;
+    const archBadgeEl = document.getElementById('ep-badge-arch');
+    if (archBadgeEl) archBadgeEl.textContent = bc['ARCH_BOUNDARY_HIGH'] ?? 0;
 
     // Per-agent table
     const profiles = d.profiles ?? [];
@@ -2737,9 +2921,10 @@ async function fetchEpsilonDecomp() {
     }
 
     const badgeColour = b =>
-      b === 'AGENT_VOLATILE'   ? 'var(--conflict)' :
-      b === 'ENV_BOTTLENECKED' ? '#f59e0b' :
-      b === 'LEGACY_CANDIDATE' ? 'var(--thresh)' : 'var(--text-dim)';
+      b === 'AGENT_VOLATILE'    ? 'var(--conflict)' :
+      b === 'ENV_BOTTLENECKED'  ? '#f59e0b' :
+      b === 'LEGACY_CANDIDATE'  ? 'var(--thresh)' :
+      b === 'ARCH_BOUNDARY_HIGH'? '#fb923c' : 'var(--text-dim)';
 
     tbody.innerHTML = profiles.map(p => {
       const badges = (p.badges ?? []).map(b =>
@@ -2748,11 +2933,14 @@ async function fetchEpsilonDecomp() {
       ).join('');
       const effColor = (p.epsilon_effective ?? 0) >= 6 ? 'var(--conflict)'
         : (p.epsilon_effective ?? 0) >= 4 ? '#f5a623' : 'var(--text)';
+      const archVal = p.epsilon_architectural ?? 0;
+      const archColor = archVal > 3.0 ? '#fb923c' : archVal > 1.5 ? '#f5a623' : 'var(--text-dim)';
       return `<tr style="border-bottom:1px solid var(--border)">
         <td style="padding:6px 8px;color:var(--accent)">${p.agent_id}</td>
         <td style="padding:6px 8px;text-align:right">${(p.phi ?? 0).toFixed(3)}</td>
         <td style="padding:6px 8px;text-align:right">${(p.epsilon_intrinsic ?? 0).toFixed(3)}</td>
-        <td style="padding:6px 8px;text-align:right;color:#f5a623">${(p.epsilon_environmental ?? 0).toFixed(3)}</td>
+        <td style="padding:6px 8px;text-align:right;color:#f5a623">${(p.epsilon_ecosystem ?? p.epsilon_environmental ?? 0).toFixed(3)}</td>
+        <td style="padding:6px 8px;text-align:right;color:${archColor};font-weight:700">${archVal.toFixed(3)}</td>
         <td style="padding:6px 8px;text-align:right;color:${effColor};font-weight:700">${(p.epsilon_effective ?? 0).toFixed(3)}</td>
         <td style="padding:6px 8px;text-align:right">${(p.stc_seconds ?? 0).toFixed(0)}</td>
         <td style="padding:6px 8px">${badges || '<span style="color:var(--text-dim)">—</span>'}</td>
@@ -2760,6 +2948,105 @@ async function fetchEpsilonDecomp() {
     }).join('');
   } catch(e) {
     // epsilon-profile endpoint not yet deployed — silent fail
+  }
+}
+
+// ── SESSION 28: QUORUM RELIABILITY ──────────────────────────────────────────
+
+async function fetchQuorumReliability() {
+  try {
+    const r = await fetch(`${API}/quorum_reliability`);
+    if (!r.ok) return;
+    const d = await r.json();
+
+    const levelEl = document.getElementById('qr-level');
+    if (!levelEl) return;
+
+    const level = d.reliability_level ?? '—';
+    levelEl.textContent = level.toUpperCase();
+    levelEl.style.color =
+      level === 'high'     ? 'var(--coop)' :
+      level === 'moderate' ? '#00cfff' :
+      level === 'degraded' ? '#f5a623' : 'var(--conflict)';
+
+    document.getElementById('qr-phi-beta').textContent = (d.phi_beta ?? 0).toFixed(4);
+
+    const regimeEl = document.getElementById('qr-regime');
+    const regime = d.quorum_regime ?? '—';
+    regimeEl.textContent = regime.replace(/_/g, ' ').toUpperCase();
+    regimeEl.style.color =
+      regime === 'above_quorum'    ? 'var(--coop)' :
+      regime === 'at_quorum'       ? '#00cfff' :
+      regime === 'approaching_quorum' ? '#f5a623' : 'var(--conflict)';
+
+    document.getElementById('qr-above').textContent = d.above_quorum ? '▲ above threshold' : '▼ below threshold';
+    document.getElementById('qr-above').style.color = d.above_quorum ? 'var(--coop)' : 'var(--conflict)';
+    document.getElementById('qr-agent-count').textContent = d.agent_count ?? 0;
+    document.getElementById('qr-advisory').textContent = d.reliability_advisory ?? '—';
+
+    // Per-agent table
+    const agents = d.per_agent ?? [];
+    const tbody = document.getElementById('qr-tbody');
+    if (!agents.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="color:var(--text-dim);padding:12px 8px;text-align:center">No agents registered</td></tr>';
+      return;
+    }
+    tbody.innerHTML = agents.map(a => {
+      const rl = a.reliability_level ?? '—';
+      const rlColor =
+        rl === 'high'     ? 'var(--coop)' :
+        rl === 'moderate' ? '#00cfff' :
+        rl === 'degraded' ? '#f5a623' : 'var(--conflict)';
+      const rg = a.quorum_regime ?? '—';
+      const rgColor =
+        rg === 'above_quorum'    ? 'var(--coop)' :
+        rg === 'at_quorum'       ? '#00cfff' :
+        rg === 'approaching_quorum' ? '#f5a623' : 'var(--conflict)';
+      return `<tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:6px 8px;color:var(--accent)">${a.agent_id}</td>
+        <td style="padding:6px 8px;text-align:right">${(a.phi ?? 0).toFixed(3)}</td>
+        <td style="padding:6px 8px;text-align:right">${(a.beta_mean ?? 0).toFixed(3)}</td>
+        <td style="padding:6px 8px;text-align:right;color:var(--accent)">${(a.phi_beta ?? 0).toFixed(4)}</td>
+        <td style="padding:6px 8px;color:${rgColor}">${rg.replace(/_/g,' ').toUpperCase()}</td>
+        <td style="padding:6px 8px;font-weight:700;color:${rlColor}">${rl.toUpperCase()}</td>
+      </tr>`;
+    }).join('');
+  } catch(e) {
+    // quorum_reliability endpoint — silent fail
+  }
+}
+
+// ── SESSION 29: ε ARCHITECTURAL CALCULATOR ───────────────────────────────
+
+function computeArchEpsilon() {
+  const weights = { native: 0.2, fastrest: 0.5, standard: 1.0, human: 1.5, legacy: 2.0 };
+  const counts = {
+    native:   parseFloat(document.getElementById('arch-native').value)   || 0,
+    fastrest: parseFloat(document.getElementById('arch-fastrest').value) || 0,
+    standard: parseFloat(document.getElementById('arch-standard').value) || 0,
+    human:    parseFloat(document.getElementById('arch-human').value)    || 0,
+    legacy:   parseFloat(document.getElementById('arch-legacy').value)   || 0,
+  };
+  const arch = Object.keys(weights).reduce((sum, k) => sum + weights[k] * counts[k], 0);
+  const rounded = Math.round(arch * 1000) / 1000;
+
+  const resultDiv = document.getElementById('arch-result');
+  const valEl     = document.getElementById('arch-result-value');
+  const badgeEl   = document.getElementById('arch-result-badge');
+  const recEl     = document.getElementById('arch-result-rec');
+
+  resultDiv.style.display = 'block';
+  valEl.textContent = rounded.toFixed(3);
+  valEl.style.color = rounded > 3.0 ? '#fb923c' : rounded > 1.5 ? '#f5a623' : 'var(--coop)';
+
+  if (rounded > 3.0) {
+    badgeEl.innerHTML = '<span style="background:rgba(251,146,60,.15);border:1px solid #fb923c;color:#fb923c;padding:2px 8px;border-radius:3px;font-size:11px">ARCH_BOUNDARY_HIGH</span>';
+    recEl.innerHTML = `<span style="color:#fb923c">⚠ Architectural recommendation:</span> ε_architectural=${rounded.toFixed(3)} exceeds threshold 3.0. β provisioning capped at 0.6×. Prioritise: (1) reduce legacy/human-bottlenecked tool count, (2) checkpoint-flush before recycling pause.`;
+    recEl.style.color = '#fb923c';
+  } else {
+    badgeEl.innerHTML = '<span style="background:rgba(0,229,160,.1);border:1px solid var(--coop);color:var(--coop);padding:2px 8px;border-radius:3px;font-size:11px">WITHIN THRESHOLD</span>';
+    recEl.innerHTML = 'No architectural intervention required. β provisioning operates normally.';
+    recEl.style.color = 'var(--text-dim)';
   }
 }
 
