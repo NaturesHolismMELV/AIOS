@@ -65,9 +65,12 @@ PROVISION_STEP_FLOOR = 0.05   # minimum PROVISION_BETA step (healthy ecosystem)
 PROVISION_STEP_CEIL  = 0.50   # maximum PROVISION_BETA step (stressed ecosystem)
 
 # ── ε DECOMPOSITION CONSTANTS (Session 26 — v2.2.0) ───────────────────────
-# ε_effective = ε_intrinsic + ε_environmental
+# ε_effective = ε_intrinsic + ε_ecosystem          [MASTER EQUATION — unchanged]
 # ε_intrinsic  — agent-side plasticity (learned, heritable, domain-specific)
-# ε_environmental — infrastructure friction (tool latency, API limits, etc.)
+# ε_ecosystem  — infrastructure friction (tool latency, API limits, etc.)
+#                  [formerly ε_environmental; renamed Session 29 — alias preserved]
+# ε_architectural — boundary condition (NOT in master equation; diagnostic only)
+#                   Session 29 addition. Computed once at registration.
 #
 # TOOL FRICTION WEIGHTS: relative cost of each resource type per interaction.
 # Derived from the BetaEnvironment resource ordering and typical AI agent
@@ -80,6 +83,42 @@ TOOL_FRICTION_WEIGHTS: dict = {
     "token_budget":   1.3,   # LLM token pressure amplifies plasticity cost
     "context_window": 1.1,   # context management overhead
 }
+
+# ── ε_architectural CONSTANTS (Session 29 — v2.5.0) ──────────────────────
+# MAIES Event 5: Grok derived three-scalar formulation from thermodynamic
+# first principles. Gemini independently confirmed. Biological grounding:
+# Oxpecker-Giraffe mutualism (L.W. Evans).
+#
+# Tool category weights for Approach A (architectural friction).
+# These weight the FIXED structural characteristics of the agent's tool set,
+# not the current runtime β values. High weight = more architectural friction.
+#   agent-native:       0.2  — internal calls, minimal boundary crossing
+#   fast_rest:          0.5  — standard REST, low latency
+#   standard:           1.0  — baseline tool category
+#   human_bottlenecked: 1.5  — human-in-loop, approval gates
+#   legacy:             2.0  — legacy systems, slow boundaries, interrupted state
+#
+# From Session 26 Brief, confirmed in MAIES Event 5 (Grok second response).
+ARCH_CATEGORY_WEIGHTS: dict = {
+    "agent_native":        0.2,
+    "fast_rest":           0.5,
+    "standard":            1.0,
+    "human_bottlenecked":  1.5,
+    "legacy":              2.0,
+}
+
+# Policy threshold: when ε_architectural exceeds this, cap β provisioning
+# and trigger architectural recommendation (Grok derivation, MAIES Event 5).
+# ③ theoretical — confirmed by biological derivation and MAIES Event 5.
+ARCH_RECOMMENDATION_THRESHOLD = 3.0   # ε_architectural > 3.0 → arch recommendation
+ARCH_BETA_MULTIPLIER_CAP      = 0.6   # max β provisioning multiplier when arch is high
+
+# OXPECKER agent archetype values (Grok second response, MAIES Event 5).
+# High ε_architectural because recycling touches interrupted state, slow
+# boundaries, and human-in-loop checkpoints.
+OXPECKER_ARCH_EPSILON_LOW  = 2.8
+OXPECKER_ARCH_EPSILON_HIGH = 3.5
+OXPECKER_ECOSYSTEM_WEIGHT  = 0.5   # confirmed: fast Haiku call, biological derivation
 
 # Speed-to-Cooperation (STC) normalisation: seconds at which STC = 1.0
 # A freshly registered agent with mean ε in a calibrated sandbox reaches
@@ -97,34 +136,52 @@ LEGACY_EPSILON_THRESHOLD     = 4.0   # ε_effective ≥ 4.0 for LEGACY badge
 @dataclass
 class EpsilonProfile:
     """
-    Session 26: Decomposed ε profile for a single agent assessment.
+    Session 29 (v2.5.0): Three-scalar ε profile for a single agent assessment.
 
-    ε_effective = ε_intrinsic + ε_environmental
+    MASTER EQUATION (unchanged):
+      ε_effective = ε_intrinsic + ε_ecosystem
 
-    Where:
-      ε_intrinsic     — agent-side adaptive plasticity (from assessment scores)
-      ε_environmental — infrastructure friction (from resource β values and
-                        tool friction weights)
+    Three scalars:
+      ε_intrinsic     [0–8]   — agent learned plasticity (per-agent, persistent)
+      ε_ecosystem     [0,∞)   — Approach B, live: infrastructure friction
+                                 (formerly ε_environmental; alias preserved)
+      ε_architectural [0,∞)   — Approach A, STATIC: boundary condition only.
+                                 NOT in master equation. Computed once at
+                                 registration from tool category weights.
+                                 When high + CI low → architectural recommendation.
+
+    MAIES Event 5 (Grok): ε_architectural never enters the master equation.
+    It is a fixed thermal resistance. Provisioning β is futile against it.
 
     Diagnosis badges (mutually non-exclusive):
-      AGENT_VOLATILE   — ε_intrinsic ≥ 6.0: agent itself is the plasticity source
-      ENV_BOTTLENECKED — ε_environmental ≥ 1.5: infrastructure is amplifying cost
-      LEGACY_CANDIDATE — low φ AND high ε_effective: likely legacy architecture
+      AGENT_VOLATILE      — ε_intrinsic ≥ 6.0: agent itself is the plasticity source
+      ENV_BOTTLENECKED    — ε_ecosystem ≥ 1.5: infrastructure is amplifying cost
+      LEGACY_CANDIDATE    — low φ AND high ε_effective: architectural replacement candidate
+      ARCH_BOUNDARY_HIGH  — ε_architectural > 3.0: β provisioning capped; arch
+                            recommendation fired instead
 
     STC (Speed-to-Cooperation):
       Estimated time for this agent to reach CI_TARGET in current environment.
       STC = STC_REFERENCE_SECONDS × (ε_effective / EPSILON_REFERENCE) × (1 / β_mean)
     """
-    agent_id:         str
-    epsilon_intrinsic:     float   # agent-side component
-    epsilon_environmental: float   # infrastructure-side component
-    epsilon_effective:     float   # sum
-    phi:              float        # current φ at time of assessment
-    beta_mean:        float        # mean β across all resources
-    stc_seconds:      float        # Speed-to-Cooperation estimate
-    badges:           list         # diagnosis badges
-    resource_friction: dict        # per-resource friction breakdown
-    interpretation:   str          # plain-language summary
+    agent_id:               str
+    epsilon_intrinsic:      float   # agent-side component
+    epsilon_ecosystem:      float   # infrastructure-side component (live)
+    epsilon_architectural:  float   # boundary condition (static, diagnostic only)
+    epsilon_effective:      float   # ε_intrinsic + ε_ecosystem (master equation)
+    phi:                    float   # current φ at time of assessment
+    beta_mean:              float   # mean β across all resources
+    stc_seconds:            float   # Speed-to-Cooperation estimate
+    badges:                 list    # diagnosis badges
+    resource_friction:      dict    # per-resource friction breakdown
+    interpretation:         str     # plain-language summary
+    architectural_recommendation: Optional[str] = None  # fires when arch > threshold + CI low
+
+    # Backward-compat alias: epsilon_environmental → epsilon_ecosystem
+    @property
+    def epsilon_environmental(self) -> float:
+        """Backward-compatible alias for epsilon_ecosystem (Session 26 consumers)."""
+        return self.epsilon_ecosystem
 
 # ── CI DYNAMICS CONSTANTS ──────────────────────────────────────────────────
 CI_TARGET            = 0.75      # Cooperative basin threshold
@@ -1311,48 +1368,48 @@ class MELVKernel:
         self,
         agent_id: str,
         epsilon_intrinsic: Optional[float] = None,
+        tool_categories: Optional[dict] = None,
     ) -> EpsilonProfile:
         """
-        Session 26: Decompose ε into intrinsic (agent-side) and environmental
-        (infrastructure-side) components.
+        Session 29 (v2.5.0): Decompose ε into three scalars.
 
-        ε_effective = ε_intrinsic + ε_environmental
+        MASTER EQUATION (unchanged):
+          ε_effective = ε_intrinsic + ε_ecosystem
 
+        Three scalars:
+        ──────────────
         ε_intrinsic:
           Taken from agent.epsilon if epsilon_intrinsic not supplied explicitly.
-          Represents the agent's own adaptive plasticity — how much the agent
-          amplifies or dampens interaction costs through its learned behaviour.
+          Per-agent, persistent. Represents learned plasticity.
 
-        ε_environmental:
+        ε_ecosystem (formerly ε_environmental — backward-compat alias preserved):
           Computed from the current BetaEnvironment and TOOL_FRICTION_WEIGHTS.
-          Captures infrastructure pressure: low β resources exert higher friction
-          per unit of agent plasticity.
+          Recomputed every governance tick from current β_r vector.
+          ε_eco = Σ_r [ friction_r × (1 / β_r) ] / n_resources
 
-          ε_env = Σ_r [ friction_r × (1 / β_r) ] / n_resources
-
-          Interpretation: when β is low (scarce resource), the same agent
-          behaviour produces more friction — the environment amplifies ε.
-
-        Diagnosis badges:
-          AGENT_VOLATILE   — ε_intrinsic ≥ 6.0
-          ENV_BOTTLENECKED — ε_environmental ≥ 1.5
-          LEGACY_CANDIDATE — φ ≤ 0.35 AND ε_effective ≥ 4.0
-
-        STC (Speed-to-Cooperation):
-          STC = STC_REFERENCE_SECONDS × (ε_effective / 3.0) × (1 / β_mean)
-          where 3.0 is the default ε reference (AgentProfile default).
-          Represents estimated seconds to reach CI_TARGET from a cold start.
+        ε_architectural (NEW — Session 29, MAIES Event 5):
+          STATIC boundary condition. NOT in master equation.
+          Computed once from tool category counts (Approach A).
+          ε_arch = Σ_i [ weight_i × count_i ]  (raw sum, not normalised)
+          When ε_architectural > ARCH_RECOMMENDATION_THRESHOLD, the kernel
+          fires an architectural recommendation instead of provisioning β.
+          Provisioning β is futile against a fixed boundary condition (Grok).
 
         Parameters
         ----------
         agent_id : str
-            Agent to profile. Must be registered in the kernel.
+            Agent to profile. Must be registered in kernel.
         epsilon_intrinsic : float, optional
             Override for ε_intrinsic. If None, uses agent.epsilon.
+        tool_categories : dict, optional
+            Map of {category_name: tool_count} using ARCH_CATEGORY_WEIGHTS keys.
+            If None, ε_architectural defaults to 0.0 (no architectural info provided).
+            Example: {"agent_native": 2, "standard": 4, "human_bottlenecked": 1}
 
         Returns
         -------
-        EpsilonProfile dataclass with full decomposition and badges.
+        EpsilonProfile dataclass with full three-scalar decomposition, badges,
+        and optional architectural_recommendation.
 
         Raises
         ------
@@ -1367,25 +1424,33 @@ class MELVKernel:
         )
         eps_intrinsic = max(0.0, min(8.0, eps_intrinsic))
 
-        # Compute per-resource friction contribution
+        # ── ε_ecosystem (Approach B, live) ─────────────────────────────────
         resource_friction = {}
         friction_sum = 0.0
         for resource, weight in TOOL_FRICTION_WEIGHTS.items():
             beta_r = self.beta.get(resource)
-            # friction contribution: weight × (1/β) → higher when resource scarce
             contrib = weight * (1.0 / max(beta_r, 0.01))
             resource_friction[resource] = {
-                "beta":        round(beta_r, 4),
-                "weight":      weight,
+                "beta":         round(beta_r, 4),
+                "weight":       weight,
                 "contribution": round(contrib, 4),
             }
             friction_sum += contrib
 
-        # Normalise by number of resources
         n_res = len(TOOL_FRICTION_WEIGHTS)
-        eps_environmental = round(friction_sum / n_res, 4)
+        eps_ecosystem = round(friction_sum / n_res, 4)
 
-        eps_effective = round(eps_intrinsic + eps_environmental, 4)
+        # ── ε_architectural (Approach A, static boundary condition) ────────
+        eps_architectural = 0.0
+        if tool_categories:
+            for cat, count in tool_categories.items():
+                weight = ARCH_CATEGORY_WEIGHTS.get(cat, ARCH_CATEGORY_WEIGHTS["standard"])
+                eps_architectural += weight * max(0, int(count))
+        eps_architectural = round(eps_architectural, 4)
+
+        # Master equation: ε_effective = ε_intrinsic + ε_ecosystem
+        # ε_architectural is NOT added here (boundary condition, not live term)
+        eps_effective = round(eps_intrinsic + eps_ecosystem, 4)
         beta_mean     = round(self.beta.mean(), 4)
 
         # STC: scale from reference (ε=3.0, β_mean=1.0 → STC_REFERENCE_SECONDS)
@@ -1393,21 +1458,41 @@ class MELVKernel:
         stc = STC_REFERENCE_SECONDS * (eps_effective / eps_ref) * (1.0 / max(beta_mean, 0.01))
         stc = round(stc, 1)
 
-        # Diagnosis badges
+        # ── Diagnosis badges ────────────────────────────────────────────────
         badges = []
         if eps_intrinsic >= VOLATILE_EPSILON_THRESHOLD:
             badges.append("AGENT_VOLATILE")
-        if eps_environmental >= ENV_BOTTLENECK_THRESHOLD:
+        if eps_ecosystem >= ENV_BOTTLENECK_THRESHOLD:
             badges.append("ENV_BOTTLENECKED")
         if agent.phi <= LEGACY_PHI_THRESHOLD and eps_effective >= LEGACY_EPSILON_THRESHOLD:
             badges.append("LEGACY_CANDIDATE")
+        if eps_architectural > ARCH_RECOMMENDATION_THRESHOLD:
+            badges.append("ARCH_BOUNDARY_HIGH")
 
-        # Plain-language interpretation
+        # ── Architectural recommendation (fires when arch high + CI low) ────
+        arch_recommendation = None
+        current_ci = getattr(self, "_current_ci", None)
+        if eps_architectural > ARCH_RECOMMENDATION_THRESHOLD:
+            ci_note = ""
+            if current_ci is not None and current_ci < CI_TARGET:
+                ci_note = (
+                    f" CI={current_ci:.3f} < CI_TARGET={CI_TARGET}: "
+                    "β provisioning capped — architectural intervention required."
+                )
+            arch_recommendation = (
+                f"ε_architectural={eps_architectural:.2f} exceeds threshold "
+                f"{ARCH_RECOMMENDATION_THRESHOLD}. This is a fixed boundary condition. "
+                f"β provisioning multiplier capped at {ARCH_BETA_MULTIPLIER_CAP}. "
+                f"Prioritise: (1) reduce legacy/human-bottlenecked tool count, "
+                f"(2) checkpoint-flush before recycling pause (OXPECKER pattern).{ci_note}"
+            )
+
+        # ── Plain-language interpretation ───────────────────────────────────
         lines = []
-        if not badges:
+        if not [b for b in badges if b != "ARCH_BOUNDARY_HIGH"]:
             lines.append(
                 f"Agent '{agent_id}' shows balanced plasticity profile. "
-                f"ε_intrinsic={eps_intrinsic:.2f}, ε_env={eps_environmental:.2f}. "
+                f"ε_intrinsic={eps_intrinsic:.2f}, ε_ecosystem={eps_ecosystem:.2f}. "
                 f"No structural issues detected."
             )
         if "AGENT_VOLATILE" in badges:
@@ -1418,7 +1503,7 @@ class MELVKernel:
             )
         if "ENV_BOTTLENECKED" in badges:
             lines.append(
-                f"ENV_BOTTLENECKED: ε_environmental={eps_environmental:.2f} exceeds threshold "
+                f"ENV_BOTTLENECKED: ε_ecosystem={eps_ecosystem:.2f} exceeds threshold "
                 f"{ENV_BOTTLENECK_THRESHOLD}. The performance problem is environmental — "
                 "infrastructure resource scarcity is amplifying interaction costs. "
                 "Provisioning β will reduce this component directly."
@@ -1430,6 +1515,11 @@ class MELVKernel:
                 "Low maturity combined with high plasticity cost suggests legacy architecture. "
                 "Consider replacement or domain reassignment."
             )
+        if "ARCH_BOUNDARY_HIGH" in badges:
+            lines.append(
+                f"ARCH_BOUNDARY_HIGH: ε_architectural={eps_architectural:.2f} (>{ARCH_RECOMMENDATION_THRESHOLD}). "
+                "Fixed boundary condition — β provisioning capped. See architectural_recommendation."
+            )
         lines.append(
             f"Speed-to-Cooperation estimate: {stc:.1f}s "
             f"(reference: {STC_REFERENCE_SECONDS:.0f}s at ε=3.0, β_mean=1.0)."
@@ -1439,7 +1529,8 @@ class MELVKernel:
         return EpsilonProfile(
             agent_id=agent_id,
             epsilon_intrinsic=round(eps_intrinsic, 4),
-            epsilon_environmental=eps_environmental,
+            epsilon_ecosystem=eps_ecosystem,
+            epsilon_architectural=eps_architectural,
             epsilon_effective=eps_effective,
             phi=round(agent.phi, 4),
             beta_mean=beta_mean,
@@ -1447,23 +1538,29 @@ class MELVKernel:
             badges=badges,
             resource_friction=resource_friction,
             interpretation=interpretation,
+            architectural_recommendation=arch_recommendation,
         )
 
     def ecosystem_epsilon_summary(self) -> dict:
         """
-        Session 26: Aggregate ε decomposition across all registered agents.
+        Session 29 (v2.5.0): Aggregate ε decomposition across all registered agents.
 
         Returns per-agent profiles plus ecosystem-level statistics:
-          - mean ε_intrinsic, ε_environmental, ε_effective
-          - badge counts (AGENT_VOLATILE / ENV_BOTTLENECKED / LEGACY_CANDIDATE)
+          - mean ε_intrinsic, ε_ecosystem (formerly ε_environmental), ε_effective
+          - ε_architectural mean (boundary condition; not in master equation)
+          - badge counts (AGENT_VOLATILE / ENV_BOTTLENECKED / LEGACY_CANDIDATE / ARCH_BOUNDARY_HIGH)
           - dominant bottleneck: "agent" | "environment" | "balanced"
+
+        Backward-compatible: also returns mean_epsilon_environmental alias.
         """
         if not self.agents:
             return {
                 "agent_count": 0,
                 "profiles": [],
                 "mean_epsilon_intrinsic": 0.0,
-                "mean_epsilon_environmental": 0.0,
+                "mean_epsilon_ecosystem": 0.0,
+                "mean_epsilon_environmental": 0.0,  # backward-compat alias
+                "mean_epsilon_architectural": 0.0,
                 "mean_epsilon_effective": 0.0,
                 "mean_stc_seconds": 0.0,
                 "badge_counts": {},
@@ -1478,7 +1575,9 @@ class MELVKernel:
                 p = {
                     "agent_id":              ep.agent_id,
                     "epsilon_intrinsic":     ep.epsilon_intrinsic,
-                    "epsilon_environmental": ep.epsilon_environmental,
+                    "epsilon_ecosystem":     ep.epsilon_ecosystem,
+                    "epsilon_environmental": ep.epsilon_ecosystem,  # backward-compat
+                    "epsilon_architectural": ep.epsilon_architectural,
                     "epsilon_effective":     ep.epsilon_effective,
                     "phi":                   ep.phi,
                     "beta_mean":             ep.beta_mean,
@@ -1494,24 +1593,27 @@ class MELVKernel:
 
         n = len(profiles)
         mean_intr  = round(sum(p["epsilon_intrinsic"]     for p in profiles) / n, 4)
-        mean_env   = round(sum(p["epsilon_environmental"] for p in profiles) / n, 4)
+        mean_eco   = round(sum(p["epsilon_ecosystem"]     for p in profiles) / n, 4)
+        mean_arch  = round(sum(p["epsilon_architectural"] for p in profiles) / n, 4)
         mean_eff   = round(sum(p["epsilon_effective"]     for p in profiles) / n, 4)
         mean_stc   = round(sum(p["stc_seconds"]           for p in profiles) / n, 1)
 
-        if mean_intr > mean_env * 1.5:
+        if mean_intr > mean_eco * 1.5:
             dominant = "agent"
-        elif mean_env > mean_intr * 1.5:
+        elif mean_eco > mean_intr * 1.5:
             dominant = "environment"
         else:
             dominant = "balanced"
 
         return {
-            "agent_count":                n,
-            "profiles":                   profiles,
-            "mean_epsilon_intrinsic":     mean_intr,
-            "mean_epsilon_environmental": mean_env,
-            "mean_epsilon_effective":     mean_eff,
-            "mean_stc_seconds":           mean_stc,
-            "badge_counts":               badge_counts,
-            "dominant_bottleneck":        dominant,
+            "agent_count":                  n,
+            "profiles":                     profiles,
+            "mean_epsilon_intrinsic":       mean_intr,
+            "mean_epsilon_ecosystem":       mean_eco,
+            "mean_epsilon_environmental":   mean_eco,   # backward-compat alias
+            "mean_epsilon_architectural":   mean_arch,
+            "mean_epsilon_effective":       mean_eff,
+            "mean_stc_seconds":             mean_stc,
+            "badge_counts":                 badge_counts,
+            "dominant_bottleneck":          dominant,
         }

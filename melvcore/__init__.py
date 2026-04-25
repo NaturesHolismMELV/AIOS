@@ -52,7 +52,7 @@ Book      : Blueprint for Harmony, Cooperation Press 2026
             ISBN 978-969-8992-10-1
 """
 
-__version__ = "1.9.0"
+__version__ = "2.5.0"
 __author__    = "L.W. Evans (Ecotao Enterprises)"
 __email__     = "web@ecotao.com"
 __license__   = "Apache-2.0"
@@ -77,6 +77,14 @@ from core.melv_engine import (
     BetaEnvironment,
     InteractionType,
     KernelAction,
+    # Session 26 + 29: ε decomposition
+    EpsilonProfile,
+    ARCH_CATEGORY_WEIGHTS,
+    ARCH_RECOMMENDATION_THRESHOLD,
+    ARCH_BETA_MULTIPLIER_CAP,
+    OXPECKER_ARCH_EPSILON_LOW,
+    OXPECKER_ARCH_EPSILON_HIGH,
+    OXPECKER_ECOSYSTEM_WEIGHT,
 )
 
 from core.nudge_engine import (
@@ -111,6 +119,14 @@ __all__ = [
     "CostProfile",
     "CostRecord",
     "get_calculator",
+    # Session 26 + 29: ε decomposition
+    "EpsilonProfile",
+    "ARCH_CATEGORY_WEIGHTS",
+    "ARCH_RECOMMENDATION_THRESHOLD",
+    "ARCH_BETA_MULTIPLIER_CAP",
+    "OXPECKER_ARCH_EPSILON_LOW",
+    "OXPECKER_ARCH_EPSILON_HIGH",
+    "OXPECKER_ECOSYSTEM_WEIGHT",
     # Convenience helpers
     "create_kernel",
     "integrate_agent",

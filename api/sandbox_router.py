@@ -675,7 +675,9 @@ async def assess_epsilon_profile(
             profiles.append({
                 "agent_id":              ep.agent_id,
                 "epsilon_intrinsic":     ep.epsilon_intrinsic,
-                "epsilon_environmental": ep.epsilon_environmental,
+                "epsilon_ecosystem":     ep.epsilon_ecosystem,
+                "epsilon_environmental": ep.epsilon_ecosystem,  # backward-compat alias
+                "epsilon_architectural": ep.epsilon_architectural,
                 "epsilon_effective":     ep.epsilon_effective,
                 "phi":                   ep.phi,
                 "beta_mean":             ep.beta_mean,
@@ -683,6 +685,7 @@ async def assess_epsilon_profile(
                 "badges":                ep.badges,
                 "resource_friction":     ep.resource_friction,
                 "interpretation":        ep.interpretation,
+                "architectural_recommendation": ep.architectural_recommendation,
             })
         except Exception as exc:
             errors.append({"agent_id": agent_id, "error": str(exc)})
@@ -699,8 +702,8 @@ async def assess_epsilon_profile(
 
     n = len(profiles)
     return {
-        "session":      "26",
-        "version":      "2.2.0",
+        "session":      "29",
+        "version":      "2.5.0",
         "agent_count":  n,
         "profiles":     profiles,
         "badge_counts": badge_counts,
@@ -712,7 +715,9 @@ async def assess_epsilon_profile(
         "errors":            errors if errors else None,
         "epistemic_status": {
             "epsilon_intrinsic":     "③ verified — from agent assessment scores or AgentProfile.epsilon",
-            "epsilon_environmental": "② theoretical — tool friction weights not yet empirically calibrated",
+            "epsilon_ecosystem":     "② theoretical — tool friction weights not yet empirically calibrated",
+            "epsilon_environmental": "② theoretical — backward-compat alias for epsilon_ecosystem",
+            "epsilon_architectural": "③ theoretical — confirmed by biological derivation and MAIES Event 5",
             "stc_seconds":          "② theoretical — reference time not yet empirically calibrated",
             "badges":               "② theoretical — thresholds principled, not validated against outcomes",
         },
@@ -723,8 +728,8 @@ def _dominant_bottleneck(profiles: list) -> str:
     """Compute dominant bottleneck direction from a list of profile dicts."""
     if not profiles:
         return "balanced"
-    mean_intr = sum(p["epsilon_intrinsic"]     for p in profiles) / len(profiles)
-    mean_env  = sum(p["epsilon_environmental"] for p in profiles) / len(profiles)
+    mean_intr = sum(p["epsilon_intrinsic"]                     for p in profiles) / len(profiles)
+    mean_env  = sum(p.get("epsilon_ecosystem", p.get("epsilon_environmental", 0.0)) for p in profiles) / len(profiles)
     if mean_intr > mean_env * 1.5:
         return "agent"
     if mean_env > mean_intr * 1.5:

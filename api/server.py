@@ -149,7 +149,7 @@ app = FastAPI(
         "Blueprint for Harmony — L.W. Evans, Cooperation Press 2026. "
         "ISBN 978-969-8992-10-1 · ORCID: 0009-0001-0963-1840"
     ),
-    version="2.3.0",
+    version="2.5.0",
     lifespan=_lifespan,
     redirect_slashes=False,   # prevents /mcp → /mcp/ redirect for MCP transports
     swagger_ui_parameters={"persistAuthorization": True},
@@ -405,13 +405,13 @@ class InteractionPost(BaseModel):
 
 @app.get("/")
 async def root():
-    return {"system": "AIOS", "version": "2.2.0", "status": "operational",
+    return {"system": "AIOS", "version": "2.5.0", "status": "operational",
             "demo": "/demo", "docs": "/docs", "mcp": "/mcp", "mcp_sse": "/mcp/sse"}
 
 @app.get("/health")
 async def health_simple():
     """Simple health check for load balancers / Railway uptime monitor."""
-    return {"status": "ok", "version": "2.2.0"}
+    return {"status": "ok", "version": "2.5.0"}
 
 @app.get("/dashboard")
 async def dashboard_page():
