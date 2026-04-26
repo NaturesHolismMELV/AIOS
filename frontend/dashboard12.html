@@ -510,7 +510,7 @@
     </div>
     <div>
       <div class="logo-name">AIOS</div>
-      <div class="logo-sub">Harmony Dashboard · MELVcore v2.5.0 · Session 29</div>
+      <div class="logo-sub">Harmony Dashboard · MELVcore v2.6.0 · Session 30</div>
     </div>
   </div>
 
@@ -573,10 +573,10 @@
   <div class="nav-item" data-target="sec-gateway" style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px"><div class="nav-dot" style="background:#a78bfa"></div>Gateway API</div>
 
   <div class="sidebar-foot">
-    MELVcore v2.5.0<br>
+    MELVcore v2.6.0<br>
     Sessions 1–29 complete<br>
     Blueprint for Harmony<br>
-    © <br>
+    © Ecotao Enterprises<br>
     L.W. Evans
     <div id="rate-limit-indicator" style="display:none;margin-top:8px;padding:4px 8px;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);border-radius:3px;color:#ef4444;font-size:12px;font-family:'Space Mono',monospace">⚠ Rate limited — paused 30s</div>
   </div>
@@ -902,7 +902,7 @@
       <div style="background:#020d18;border:1px solid var(--border);padding:10px 14px;border-radius:4px;font-size:12px;font-family:'Space Mono',monospace;color:var(--text-dim)">
         <div style="color:var(--accent);margin-bottom:4px">ORCID</div>
         <a href="https://orcid.org/0009-0001-0963-1840" target="_blank" style="color:var(--coop);text-decoration:none">0009-0001-0963-1840</a>
-        <div style="margin-top:6px;color:var(--text-dim)">L.W. Evans </div>
+        <div style="margin-top:6px;color:var(--text-dim)">L.W. Evans · Ecotao Enterprises</div>
       </div>
       <div style="background:#020d18;border:1px solid var(--border);padding:10px 14px;border-radius:4px;font-size:12px;font-family:'Space Mono',monospace;color:var(--text-dim)">
         <div style="color:var(--accent);margin-bottom:4px">Book ISBN</div>
@@ -2275,7 +2275,7 @@
 <section id="sec-epsilon-arch" class="panel" style="display:none">
   <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
     <span style="font-size:18px;font-weight:700">ε Architectural</span>
-    <span style="font-family:'Space Mono',monospace;font-size:12px;color:#fb923c;background:rgba(251,146,60,.12);padding:2px 8px;border-radius:3px">S29</span>
+    <span style="font-family:'Space Mono',monospace;font-size:12px;color:#fb923c;background:rgba(251,146,60,.12);padding:2px 8px;border-radius:3px">S30</span>
   </div>
   <div style="font-size:13px;color:var(--text-dim);margin-bottom:20px;line-height:1.6">
     <strong style="color:var(--text)">ε_architectural — fixed boundary condition. NOT in master equation.</strong><br>
@@ -2866,57 +2866,63 @@ async function fetchQuorumStatus() {
 // ── SESSION 26: ε DECOMPOSITION ───────────────────────────────────────────
 
 async function fetchEpsilonDecomp() {
+  // Session 30 (v2.6.0): reads mean stats from ecosystem_summary (top-level response
+  // wraps profiles + badge_counts + ecosystem_summary as a nested object).
   try {
     const r = await fetch('/sandbox/assess/epsilon-profile', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ agent_ids: [], epsilon_overrides: {} })
+      body: JSON.stringify({ agent_ids: [], epsilon_overrides: {}, tool_categories: {} })
     });
     if (!r.ok) return;
     const d = await r.json();
 
+    // Mean stats live in ecosystem_summary when all agents are profiled
+    const s = d.ecosystem_summary ?? {};
+
     document.getElementById('ep-mean-intr').textContent =
-      (d.mean_epsilon_intrinsic ?? 0).toFixed(3);
+      (s.mean_epsilon_intrinsic ?? 0).toFixed(3);
     document.getElementById('ep-mean-env').textContent =
-      (d.mean_epsilon_ecosystem ?? d.mean_epsilon_environmental ?? 0).toFixed(3);
+      (s.mean_epsilon_ecosystem ?? s.mean_epsilon_environmental ?? 0).toFixed(3);
 
     const archEl = document.getElementById('ep-mean-arch');
     if (archEl) {
-      const archMean = d.mean_epsilon_architectural ?? 0;
+      const archMean = s.mean_epsilon_architectural ?? 0;
       archEl.textContent = archMean.toFixed(3);
       archEl.style.color = archMean > 3.0 ? '#fb923c' : archMean > 1.5 ? '#f5a623' : 'var(--text-dim)';
     }
 
     const effEl = document.getElementById('ep-mean-eff');
-    const eff = d.mean_epsilon_effective ?? 0;
+    const eff = s.mean_epsilon_effective ?? 0;
     effEl.textContent = eff.toFixed(3);
     effEl.style.color = eff >= 6 ? 'var(--conflict)' : eff >= 4 ? '#f5a623' : 'var(--coop)';
 
-    const bottleneck = d.dominant_bottleneck ?? 'balanced';
+    // dominant_bottleneck is at the top level
+    const bottleneck = d.dominant_bottleneck ?? s.dominant_bottleneck ?? 'balanced';
     const bEl = document.getElementById('ep-bottleneck');
     bEl.textContent = bottleneck.toUpperCase();
     bEl.style.color = bottleneck === 'agent' ? 'var(--conflict)'
       : bottleneck === 'environment' ? '#f59e0b'
       : 'var(--coop)';
 
-    const stc = d.mean_stc_seconds ?? 0;
+    const stc = s.mean_stc_seconds ?? 0;
     const stcEl = document.getElementById('ep-mean-stc');
     stcEl.textContent = stc.toFixed(1) + 's';
     stcEl.style.color = stc > 300 ? 'var(--conflict)' : stc > 150 ? '#f5a623' : 'var(--coop)';
 
-    // Badge counts
-    const bc = d.badge_counts ?? {};
+    // Badge counts at top level
+    const bc = d.badge_counts ?? s.badge_counts ?? {};
     document.getElementById('ep-badge-volatile').textContent = bc['AGENT_VOLATILE'] ?? 0;
     document.getElementById('ep-badge-env').textContent      = bc['ENV_BOTTLENECKED'] ?? 0;
     document.getElementById('ep-badge-legacy').textContent   = bc['LEGACY_CANDIDATE'] ?? 0;
     const archBadgeEl = document.getElementById('ep-badge-arch');
     if (archBadgeEl) archBadgeEl.textContent = bc['ARCH_BOUNDARY_HIGH'] ?? 0;
 
-    // Per-agent table
+    // Per-agent table — profiles at top level
     const profiles = d.profiles ?? [];
     const tbody = document.getElementById('ep-tbody');
     if (!profiles.length) {
-      tbody.innerHTML = '<tr><td colspan="7" style="color:var(--text-dim);padding:12px 8px;text-align:center">No agents registered</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="8" style="color:var(--text-dim);padding:12px 8px;text-align:center">No agents registered</td></tr>';
       return;
     }
 
@@ -2947,7 +2953,7 @@ async function fetchEpsilonDecomp() {
       </tr>`;
     }).join('');
   } catch(e) {
-    // epsilon-profile endpoint not yet deployed — silent fail
+    // silent fail — endpoint may not yet be deployed
   }
 }
 
@@ -3018,35 +3024,73 @@ async function fetchQuorumReliability() {
 
 // ── SESSION 29: ε ARCHITECTURAL CALCULATOR ───────────────────────────────
 
-function computeArchEpsilon() {
-  const weights = { native: 0.2, fastrest: 0.5, standard: 1.0, human: 1.5, legacy: 2.0 };
+async function computeArchEpsilon() {
+  // Session 30 (v2.6.0): hit live API with tool_categories dict — get real
+  // engine response including architectural_recommendation text.
   const counts = {
-    native:   parseFloat(document.getElementById('arch-native').value)   || 0,
-    fastrest: parseFloat(document.getElementById('arch-fastrest').value) || 0,
-    standard: parseFloat(document.getElementById('arch-standard').value) || 0,
-    human:    parseFloat(document.getElementById('arch-human').value)    || 0,
-    legacy:   parseFloat(document.getElementById('arch-legacy').value)   || 0,
+    agent_native:        parseInt(document.getElementById('arch-native').value)   || 0,
+    fast_rest:           parseInt(document.getElementById('arch-fastrest').value) || 0,
+    standard:            parseInt(document.getElementById('arch-standard').value) || 0,
+    human_bottlenecked:  parseInt(document.getElementById('arch-human').value)    || 0,
+    legacy:              parseInt(document.getElementById('arch-legacy').value)   || 0,
   };
-  const arch = Object.keys(weights).reduce((sum, k) => sum + weights[k] * counts[k], 0);
-  const rounded = Math.round(arch * 1000) / 1000;
 
   const resultDiv = document.getElementById('arch-result');
   const valEl     = document.getElementById('arch-result-value');
   const badgeEl   = document.getElementById('arch-result-badge');
   const recEl     = document.getElementById('arch-result-rec');
 
-  resultDiv.style.display = 'block';
-  valEl.textContent = rounded.toFixed(3);
-  valEl.style.color = rounded > 3.0 ? '#fb923c' : rounded > 1.5 ? '#f5a623' : 'var(--coop)';
+  // Filter out zero-count categories
+  const tool_categories = Object.fromEntries(
+    Object.entries(counts).filter(([, v]) => v > 0)
+  );
 
-  if (rounded > 3.0) {
-    badgeEl.innerHTML = '<span style="background:rgba(251,146,60,.15);border:1px solid #fb923c;color:#fb923c;padding:2px 8px;border-radius:3px;font-size:11px">ARCH_BOUNDARY_HIGH</span>';
-    recEl.innerHTML = `<span style="color:#fb923c">⚠ Architectural recommendation:</span> ε_architectural=${rounded.toFixed(3)} exceeds threshold 3.0. β provisioning capped at 0.6×. Prioritise: (1) reduce legacy/human-bottlenecked tool count, (2) checkpoint-flush before recycling pause.`;
-    recEl.style.color = '#fb923c';
-  } else {
-    badgeEl.innerHTML = '<span style="background:rgba(0,229,160,.1);border:1px solid var(--coop);color:var(--coop);padding:2px 8px;border-radius:3px;font-size:11px">WITHIN THRESHOLD</span>';
-    recEl.innerHTML = 'No architectural intervention required. β provisioning operates normally.';
-    recEl.style.color = 'var(--text-dim)';
+  // Show loading state
+  resultDiv.style.display = 'block';
+  valEl.textContent = '…';
+  badgeEl.innerHTML = '';
+  recEl.innerHTML = '';
+
+  try {
+    const r = await fetch('/sandbox/assess/epsilon-profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ agent_ids: [], epsilon_overrides: {}, tool_categories })
+    });
+    if (!r.ok) throw new Error('API error ' + r.status);
+    const d = await r.json();
+
+    // Take the first profile — all agents get the same ε_arch from tool topology
+    const p = (d.profiles ?? [])[0];
+    if (!p) { valEl.textContent = '—'; return; }
+
+    const archVal = p.epsilon_architectural ?? 0;
+    valEl.textContent = archVal.toFixed(3);
+    valEl.style.color = archVal > 3.0 ? '#fb923c' : archVal > 1.5 ? '#f5a623' : 'var(--coop)';
+
+    const hasBadge = (p.badges ?? []).includes('ARCH_BOUNDARY_HIGH');
+    if (hasBadge) {
+      badgeEl.innerHTML = '<span style="background:rgba(251,146,60,.15);border:1px solid #fb923c;color:#fb923c;padding:2px 8px;border-radius:3px;font-size:11px">ARCH_BOUNDARY_HIGH</span>';
+    } else {
+      badgeEl.innerHTML = '<span style="background:rgba(0,229,160,.1);border:1px solid var(--coop);color:var(--coop);padding:2px 8px;border-radius:3px;font-size:11px">WITHIN THRESHOLD</span>';
+    }
+
+    const rec = p.architectural_recommendation;
+    if (rec) {
+      recEl.innerHTML = `<span style="color:#fb923c">⚠ Architectural recommendation (live):</span> ${rec}`;
+      recEl.style.color = '#fb923c';
+    } else {
+      recEl.innerHTML = 'No architectural intervention required. β provisioning operates normally.';
+      recEl.style.color = 'var(--text-dim)';
+    }
+  } catch(e) {
+    // Fallback: client-side calculation if API unreachable
+    const weights = { agent_native: 0.2, fast_rest: 0.5, standard: 1.0, human_bottlenecked: 1.5, legacy: 2.0 };
+    const arch = Object.keys(weights).reduce((sum, k) => sum + (weights[k] * (counts[k] || 0)), 0);
+    const rounded = Math.round(arch * 1000) / 1000;
+    valEl.textContent = rounded.toFixed(3) + ' (local)';
+    valEl.style.color = rounded > 3.0 ? '#fb923c' : rounded > 1.5 ? '#f5a623' : 'var(--coop)';
+    recEl.innerHTML = '<span style="color:var(--text-dim)">API offline — client-side calculation shown.</span>';
   }
 }
 
