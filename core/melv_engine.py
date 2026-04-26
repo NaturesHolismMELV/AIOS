@@ -46,6 +46,7 @@ GATEWAY API ENFORCEMENT:
 ══════════════════════════════════════════════════════════════════
 """
 
+import hashlib
 import math
 import time
 import random
@@ -119,6 +120,56 @@ ARCH_BETA_MULTIPLIER_CAP      = 0.6   # max β provisioning multiplier when arch
 OXPECKER_ARCH_EPSILON_LOW  = 2.8
 OXPECKER_ARCH_EPSILON_HIGH = 3.5
 OXPECKER_ECOSYSTEM_WEIGHT  = 0.5   # confirmed: fast Haiku call, biological derivation
+
+# ── ε_intrinsic PER-AGENT VARIANCE (Session 30 — v2.6.0) ─────────────────
+# Individual agents of the same type vary around their type mean just as
+# conspecifics vary in adaptive plasticity. The type default is the species
+# mean; the agent_id hash seeds a reproducible Gaussian perturbation.
+#
+# Design principles:
+#   - Deterministic: same agent_id always → same ε_intrinsic across restarts
+#   - ε is a structural property of the agent's architecture, not a fresh
+#     random draw. The hash seed preserves this across Railway restarts.
+#   - Sigma = 0.3: meaningful spread (±0.3) without swamping type signal
+#
+# Epistemic status: ② theoretical — sigma principled, not calibrated against
+# empirical agent performance distributions.
+EPSILON_VARIANCE_SIGMA   = 0.3    # Gaussian σ around type mean
+EPSILON_VARIANCE_FLOOR   = 0.5    # minimum ε_intrinsic (no agent is fully rigid)
+EPSILON_VARIANCE_CEILING = 7.5    # maximum ε_intrinsic (headroom below 8.0)
+
+# Type-default ε_intrinsic (species means). Per-agent values perturb around these.
+# Source: agent assessment calibration across Sessions 16–29.
+EPSILON_TYPE_DEFAULTS: dict = {
+    "RESEARCH":  3.2,
+    "ANALYSIS":  5.5,
+    "WRITER":    2.4,
+    "CODE":      3.0,
+    "MONITOR":   2.5,
+    "PLANNER":   1.8,
+    "DATA":      5.2,
+    "SEARCH":    4.5,
+    "OXPECKER":  1.5,
+}
+
+
+def _perturbed_epsilon(agent_id: str, base_epsilon: float) -> float:
+    """
+    Return a deterministic per-agent ε_intrinsic perturbed around base_epsilon.
+
+    Seeds a Gaussian from the MD5 of agent_id — reproducible across restarts.
+    If agent_id is empty, returns base_epsilon unperturbed (backward compat).
+
+    Session 30 (v2.6.0). Epistemic status: ② theoretical.
+    """
+    if not agent_id:
+        return round(base_epsilon, 4)
+    seed = int(hashlib.md5(agent_id.encode("utf-8")).hexdigest()[:8], 16)
+    rng  = random.Random(seed)
+    perturbed = rng.gauss(base_epsilon, EPSILON_VARIANCE_SIGMA)
+    clamped   = max(EPSILON_VARIANCE_FLOOR, min(EPSILON_VARIANCE_CEILING, perturbed))
+    return round(clamped, 4)
+
 
 # Speed-to-Cooperation (STC) normalisation: seconds at which STC = 1.0
 # A freshly registered agent with mean ε in a calibrated sandbox reaches
@@ -1419,9 +1470,12 @@ class MELVKernel:
         if agent is None:
             raise KeyError(f"Agent '{agent_id}' not found in kernel.")
 
-        eps_intrinsic = (
-            epsilon_intrinsic if epsilon_intrinsic is not None else agent.epsilon
-        )
+        # Session 30 (v2.6.0): apply deterministic per-agent Gaussian variance
+        # when no override supplied. Overrides bypass variance (backward compat).
+        if epsilon_intrinsic is not None:
+            eps_intrinsic = epsilon_intrinsic
+        else:
+            eps_intrinsic = _perturbed_epsilon(agent_id, agent.epsilon)
         eps_intrinsic = max(0.0, min(8.0, eps_intrinsic))
 
         # ── ε_ecosystem (Approach B, live) ─────────────────────────────────

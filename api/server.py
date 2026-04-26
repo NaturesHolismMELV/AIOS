@@ -149,7 +149,7 @@ app = FastAPI(
         "Blueprint for Harmony — L.W. Evans, Cooperation Press 2026. "
         "ISBN 978-969-8992-10-1 · ORCID: 0009-0001-0963-1840"
     ),
-    version="2.5.0",
+    version="2.6.0",
     lifespan=_lifespan,
     redirect_slashes=False,   # prevents /mcp → /mcp/ redirect for MCP transports
     swagger_ui_parameters={"persistAuthorization": True},

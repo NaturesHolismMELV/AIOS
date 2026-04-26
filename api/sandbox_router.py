@@ -595,6 +595,8 @@ class EpsilonProfileRequest(BaseModel):
 
     If agent_ids is empty, profiles all registered agents and returns
     the ecosystem summary.
+
+    Session 30 (v2.6.0): tool_categories added for ε_architectural computation.
     """
     agent_ids:         list[str] = Field(
         default_factory=list,
@@ -606,6 +608,16 @@ class EpsilonProfileRequest(BaseModel):
             "Optional per-agent ε_intrinsic overrides. "
             "Key: agent_id, Value: ε_intrinsic [0.0–8.0]. "
             "If omitted, uses the agent's registered epsilon."
+        )
+    )
+    tool_categories: dict[str, int] = Field(
+        default_factory=dict,
+        description=(
+            "Tool category counts for ε_architectural computation. "
+            "Keys from ARCH_CATEGORY_WEIGHTS: agent_native (0.2), fast_rest (0.5), "
+            "standard (1.0), human_bottlenecked (1.5), legacy (2.0). "
+            "Example: {\"standard\": 4, \"human_bottlenecked\": 1}. "
+            "Empty dict → ε_architectural = 0.0 (no architectural info supplied)."
         )
     )
 
@@ -670,7 +682,9 @@ async def assess_epsilon_profile(
         eps_override = payload.epsilon_overrides.get(agent_id)
         try:
             ep: EpsilonProfile = kernel.compute_epsilon_profile(
-                agent_id, epsilon_intrinsic=eps_override
+                agent_id,
+                epsilon_intrinsic=eps_override,
+                tool_categories=payload.tool_categories if payload.tool_categories else None,
             )
             profiles.append({
                 "agent_id":              ep.agent_id,
@@ -702,8 +716,8 @@ async def assess_epsilon_profile(
 
     n = len(profiles)
     return {
-        "session":      "29",
-        "version":      "2.5.0",
+        "session":      "30",
+        "version":      "2.6.0",
         "agent_count":  n,
         "profiles":     profiles,
         "badge_counts": badge_counts,
@@ -717,7 +731,7 @@ async def assess_epsilon_profile(
             "epsilon_intrinsic":     "③ verified — from agent assessment scores or AgentProfile.epsilon",
             "epsilon_ecosystem":     "② theoretical — tool friction weights not yet empirically calibrated",
             "epsilon_environmental": "② theoretical — backward-compat alias for epsilon_ecosystem",
-            "epsilon_architectural": "③ theoretical — confirmed by biological derivation and MAIES Event 5",
+            "epsilon_architectural": "③ theoretical — formula confirmed by biological derivation (MAIES Event 5); individual ARCH_CATEGORY_WEIGHTS are ① stub until empirically calibrated against latency data (Session 30)",
             "stc_seconds":          "② theoretical — reference time not yet empirically calibrated",
             "badges":               "② theoretical — thresholds principled, not validated against outcomes",
         },
