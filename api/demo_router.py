@@ -110,16 +110,23 @@ async def demo_status():
     Returns current CI, agent count, and demo availability.
     Always accessible — no auth, no rate limit.
     """
-    kernel = get_kernel()
-    ci     = kernel.compute_cooperation_index()
-    agents = len(kernel.agents)
     _cleanup_demo_agents()
     active_demos = len(_demo_agents)
 
+    try:
+        kernel = get_kernel()
+        ci     = round(kernel.compute_cooperation_index(), 4)
+        agents = len(kernel.agents)
+        kernel_ready = True
+    except RuntimeError:
+        ci     = None
+        agents = None
+        kernel_ready = False
+
     return {
-        "demo_available":    True,
-        "cooperation_index": round(ci, 4),
-        "ecosystem_agents":  agents,
+        "demo_available":       kernel_ready,
+        "cooperation_index":    ci,
+        "ecosystem_agents":     agents,
         "active_demo_sessions": active_demos,
         "demo_window_seconds":  DEMO_WINDOW,
         "max_interactions":     DEMO_MAX_INTERACTIONS,
@@ -127,6 +134,8 @@ async def demo_status():
             "MELVcore live demo. Use POST /demo/register to start, "
             "then POST /demo/interact to fire stress interactions. "
             "No API key required."
+        ) if kernel_ready else (
+            "MELVcore kernel initialising — retry in a few seconds."
         )
     }
 
@@ -306,7 +315,10 @@ async def demo_interact(request: Request, payload: DemoInteractRequest):
 
     contention_depth = kernel.get_contention_depth(agent_id, target_id)
     nudge_engine     = NudgeEngine()
-    nudge            = nudge_engine.build_nudge(action, beta_i, RESOURCE_TYPE, contention_depth, 0.3)
+    nudge            = nudge_engine.build_nudge_v2(
+        action.value if hasattr(action, "value") else str(action),
+        beta_i, RESOURCE_TYPE, contention_depth, 0.3
+    )
 
     # Current CI after this interaction
     ci_now = round(kernel.compute_cooperation_index(), 4)
@@ -341,11 +353,20 @@ async def demo_ci():
     Public CI snapshot — no auth required.
     For polling during the demo to track recovery arc.
     """
-    kernel = get_kernel()
-    ci     = kernel.compute_cooperation_index()
-    return {
-        "cooperation_index": round(ci, 4),
-        "target":            0.75,
-        "healthy":           ci >= 0.75,
-        "timestamp":         time.time(),
-    }
+    try:
+        kernel = get_kernel()
+        ci     = kernel.compute_cooperation_index()
+        return {
+            "cooperation_index": round(ci, 4),
+            "target":            0.75,
+            "healthy":           ci >= 0.75,
+            "timestamp":         time.time(),
+        }
+    except RuntimeError:
+        return {
+            "cooperation_index": None,
+            "target":            0.75,
+            "healthy":           None,
+            "timestamp":         time.time(),
+            "message":           "Kernel initialising — retry in a few seconds."
+        }
