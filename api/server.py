@@ -194,8 +194,18 @@ def _custom_openapi():
 app.openapi = _custom_openapi
 
 # Session 13: deployment middleware (rate limiting + optional API key)
+# Middleware is applied in reverse-add order by Starlette.
+# CORSMiddleware must run FIRST to handle preflight OPTIONS before APIKeyMiddleware
+# blocks them with 401. So CORSMiddleware is added LAST here.
 app.add_middleware(RateLimitMiddleware)
 app.add_middleware(APIKeyMiddleware)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "X-API-Key"],
+    allow_credentials=False,
+)
 
 app.include_router(data_router,    prefix="/data",    tags=["data"])
 app.include_router(gateway_router, prefix="/melv",    tags=["MELVcore Gateway"])
@@ -258,12 +268,7 @@ async def _mcp_streamable_endpoint(request: _Request):
 _frontend_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend")
 app.mount("/frontend", StaticFiles(directory=_frontend_dir), name="frontend")
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# CORSMiddleware moved to line below — must run before APIKeyMiddleware
 
 # ── GLOBAL STATE ───────────────────────────────────────────────────────────
 

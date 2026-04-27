@@ -958,6 +958,7 @@ Version: MELVcore v2.6.0 | Session 30 | April 2026
   <div class="nav-item on" data-target="sec-overview"><div class="nav-dot" style="background:var(--accent)"></div>Overview</div>
   <div class="nav-item" data-target="sec-ifactor"><div class="nav-dot" style="background:var(--coop)"></div>i-Factor Monitor</div>
   <div class="nav-item" data-target="sec-omega"><div class="nav-dot" style="background:var(--gold)"></div>OmegaNet (Ω)</div>
+  <div class="nav-item" data-target="sec-demo" style="margin-top:4px"><div class="nav-dot" style="background:var(--coop);animation:dp-pulse 1.4s ease-in-out infinite"></div>▶ Run Demo <span style="font-family:'Space Mono',monospace;font-size:12px;color:var(--coop);margin-left:auto">S30b</span></div>
 
   <div class="nav-sec">Agents</div>
   <div class="nav-item" data-target="sec-agents"><div class="nav-dot" style="background:var(--coop)"></div>Registry</div>
@@ -1012,7 +1013,7 @@ Version: MELVcore v2.6.0 | Session 30 | April 2026
 
   <div class="sidebar-foot">
     MELVcore v2.6.0<br>
-    Sessions 1–30 complete<br>
+    Sessions 1–30b complete<br>
     Blueprint for Harmony<br>
     © Ecotao Enterprises<br>
     L.W. Evans
@@ -1117,6 +1118,543 @@ Version: MELVcore v2.6.0 | Session 30 | April 2026
         <span style="color:var(--thresh)">— Threshold</span>
         <span style="margin-left:auto">β_service = <span style="color:var(--accent)" id="bs-val">—</span></span>
       </div>
+    </div>
+  </div>
+
+<!-- ══════════════════════════════════════════════════════════════
+       SESSION 30b — BIFURCATION DEMO PANEL
+       Self-contained live demo. No API key required.
+       Source: bifurcation-demo-panel.html (independent Claude session)
+       Server fixes: CORS, agent_id field, /demo/reset endpoint.
+       ══════════════════════════════════════════════════════════════ -->
+  <div id="sec-demo" style="padding:0 0 8px 0">
+    <div class="card" style="padding:0;overflow:hidden;border:none;background:transparent">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Syne:wght@400;600;700&display=swap');
+
+  #melv-demo-panel {
+    --dp-bg: #0a0e14;
+    --dp-surface: #111820;
+    --dp-border: #1e2d3d;
+    --dp-accent: #00e5a0;
+    --dp-warn: #f5a623;
+    --dp-danger: #e8445a;
+    --dp-muted: #4a6070;
+    --dp-text: #c8d8e8;
+    --dp-text-dim: #607080;
+    --dp-mono: 'JetBrains Mono', monospace;
+    --dp-sans: 'Syne', sans-serif;
+
+    background: var(--dp-bg);
+    border: 1px solid var(--dp-border);
+    border-radius: 8px;
+    padding: 20px;
+    font-family: var(--dp-mono);
+    color: var(--dp-text);
+    width: 100%;
+    box-sizing: border-box;
+    position: relative;
+    overflow: hidden;
+  }
+
+  #melv-demo-panel::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--dp-accent), #0077ff, var(--dp-accent));
+    background-size: 200% 100%;
+    animation: dp-scanline 3s linear infinite;
+  }
+
+  @keyframes dp-scanline {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  #melv-demo-panel .dp-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
+  #melv-demo-panel .dp-title {
+    font-family: var(--dp-sans);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--dp-accent);
+  }
+
+  #melv-demo-panel .dp-status-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--dp-muted);
+    display: inline-block;
+    margin-right: 6px;
+    transition: background 0.3s;
+  }
+  #melv-demo-panel .dp-status-dot.live { background: var(--dp-accent); animation: dp-pulse 1.4s ease-in-out infinite; }
+  #melv-demo-panel .dp-status-dot.warn { background: var(--dp-warn); animation: dp-pulse 0.8s ease-in-out infinite; }
+  #melv-demo-panel .dp-status-dot.danger { background: var(--dp-danger); animation: dp-pulse 0.5s ease-in-out infinite; }
+
+  @keyframes dp-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  #melv-demo-panel .dp-phase {
+    font-size: 10px;
+    color: var(--dp-text-dim);
+    letter-spacing: 0.08em;
+  }
+
+  #melv-demo-panel .dp-metrics {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  #melv-demo-panel .dp-metric {
+    background: var(--dp-surface);
+    border: 1px solid var(--dp-border);
+    border-radius: 5px;
+    padding: 10px 10px 8px;
+  }
+
+  #melv-demo-panel .dp-metric-label {
+    font-size: 9px;
+    color: var(--dp-text-dim);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 5px;
+  }
+
+  #melv-demo-panel .dp-metric-value {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--dp-text);
+    line-height: 1;
+    transition: color 0.4s;
+  }
+
+  #melv-demo-panel .dp-metric-value.ok { color: var(--dp-accent); }
+  #melv-demo-panel .dp-metric-value.warn { color: var(--dp-warn); }
+  #melv-demo-panel .dp-metric-value.danger { color: var(--dp-danger); }
+  #melv-demo-panel .dp-metric-value.small { font-size: 11px; padding-top: 3px; line-height: 1.3; }
+
+  #melv-demo-panel .dp-ci-track {
+    margin-bottom: 14px;
+  }
+
+  #melv-demo-panel .dp-ci-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 9px;
+    color: var(--dp-text-dim);
+    margin-bottom: 4px;
+    letter-spacing: 0.06em;
+  }
+
+  #melv-demo-panel .dp-ci-bar-bg {
+    height: 5px;
+    background: var(--dp-border);
+    border-radius: 3px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  #melv-demo-panel .dp-ci-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.6s cubic-bezier(0.4,0,0.2,1), background 0.6s;
+    position: relative;
+  }
+
+  #melv-demo-panel .dp-ci-threshold {
+    position: absolute;
+    top: -3px;
+    width: 1px;
+    height: 11px;
+    background: var(--dp-warn);
+    opacity: 0.8;
+    left: 75%;
+  }
+
+  #melv-demo-panel .dp-interactions {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+
+  #melv-demo-panel .dp-dot {
+    width: 10px; height: 10px;
+    border-radius: 2px;
+    background: var(--dp-border);
+    transition: background 0.3s, transform 0.15s;
+  }
+  #melv-demo-panel .dp-dot.active { background: var(--dp-warn); transform: scale(1.2); }
+  #melv-demo-panel .dp-dot.done { background: var(--dp-accent); }
+  #melv-demo-panel .dp-dot.danger { background: var(--dp-danger); }
+
+  #melv-demo-panel .dp-log {
+    background: var(--dp-surface);
+    border: 1px solid var(--dp-border);
+    border-radius: 5px;
+    padding: 10px 12px;
+    height: 180px;
+    overflow-y: auto;
+    margin-bottom: 14px;
+    font-size: 10px;
+    line-height: 1.8;
+    scrollbar-width: thin;
+    scrollbar-color: var(--dp-border) transparent;
+  }
+
+  #melv-demo-panel .dp-log-line { color: var(--dp-text-dim); border-bottom: 1px solid rgba(30,45,61,0.5); padding: 1px 0; }
+  #melv-demo-panel .dp-log-line:last-child { border-bottom: none; }
+  #melv-demo-panel .dp-log-line.event { color: var(--dp-text); }
+  #melv-demo-panel .dp-log-line .dp-ts { color: #2a4050; margin-right: 8px; }
+  #melv-demo-panel .dp-log-line .dp-ci-val { font-weight: 700; }
+  #melv-demo-panel .dp-log-line.ok .dp-ci-val { color: var(--dp-accent); }
+  #melv-demo-panel .dp-log-line.warn .dp-ci-val { color: var(--dp-warn); }
+  #melv-demo-panel .dp-log-line.bif .dp-ci-val { color: var(--dp-danger); }
+
+  #melv-demo-panel .dp-btn-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  #melv-demo-panel .dp-btn-run {
+    flex: 1;
+    background: transparent;
+    border: 1px solid var(--dp-accent);
+    color: var(--dp-accent);
+    font-family: var(--dp-mono);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 10px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  #melv-demo-panel .dp-btn-run:hover:not(:disabled) {
+    background: var(--dp-accent);
+    color: var(--dp-bg);
+  }
+
+  #melv-demo-panel .dp-btn-run:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+
+  #melv-demo-panel .dp-btn-reset {
+    background: transparent;
+    border: 1px solid var(--dp-border);
+    color: var(--dp-text-dim);
+    font-family: var(--dp-mono);
+    font-size: 10px;
+    padding: 10px 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s;
+    letter-spacing: 0.08em;
+  }
+
+  #melv-demo-panel .dp-btn-reset:hover {
+    border-color: var(--dp-text-dim);
+    color: var(--dp-text);
+  }
+
+  #melv-demo-panel .dp-nudge {
+    font-size: 9px;
+    color: var(--dp-text-dim);
+    margin-top: 10px;
+    padding: 8px 10px;
+    background: var(--dp-surface);
+    border-left: 2px solid var(--dp-accent);
+    border-radius: 0 4px 4px 0;
+    line-height: 1.6;
+    min-height: 32px;
+    transition: border-color 0.4s;
+  }
+  #melv-demo-panel .dp-nudge.warn { border-left-color: var(--dp-warn); }
+  #melv-demo-panel .dp-nudge.bif { border-left-color: var(--dp-danger); }
+
+  @media (max-width: 600px) {
+    #melv-demo-panel .dp-metrics { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+
+<div id="melv-demo-panel" role="region" aria-label="MELVcore bifurcation live demonstration panel">
+
+  <div class="dp-header">
+    <span class="dp-title">
+      <span class="dp-status-dot" id="dp-dot-hdr"></span>
+      Bifurcation Demo
+    </span>
+    <span class="dp-phase" id="dp-phase">ready</span>
+  </div>
+
+  <div class="dp-metrics">
+    <div class="dp-metric">
+      <div class="dp-metric-label">CI now</div>
+      <div class="dp-metric-value" id="dp-ci">—</div>
+    </div>
+    <div class="dp-metric">
+      <div class="dp-metric-label">status</div>
+      <div class="dp-metric-value small" id="dp-status">—</div>
+    </div>
+    <div class="dp-metric">
+      <div class="dp-metric-label">nudge</div>
+      <div class="dp-metric-value small" id="dp-nudge-type">—</div>
+    </div>
+    <div class="dp-metric">
+      <div class="dp-metric-label">action</div>
+      <div class="dp-metric-value small" id="dp-gov">—</div>
+    </div>
+  </div>
+
+  <div class="dp-ci-track">
+    <div class="dp-ci-labels">
+      <span>CI 0.0</span>
+      <span>threshold 0.75</span>
+      <span>1.0</span>
+    </div>
+    <div class="dp-ci-bar-bg">
+      <div class="dp-ci-bar-fill" id="dp-bar" style="width:0%;background:#00e5a0;"></div>
+      <div class="dp-ci-threshold"></div>
+    </div>
+  </div>
+
+  <div class="dp-interactions" id="dp-dots"></div>
+
+  <div class="dp-log" id="dp-log">
+    <div class="dp-log-line event">MELVcore bifurcation demo panel ready — press Run to begin.</div>
+  </div>
+
+  <div class="dp-nudge" id="dp-nudge-rationale">Governance rationale will appear here during stress interactions.</div>
+
+  <div class="dp-btn-row">
+    <button class="dp-btn-run" id="dp-btn-run">&#9654; Run bifurcation demo</button>
+    <button class="dp-btn-reset" id="dp-btn-reset">Reset</button>
+  </div>
+
+</div>
+
+<script>
+(function() {
+  const BASE = 'https://web-production-e14d1.up.railway.app';
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+  const $ = id => document.getElementById(id);
+  const log = $('dp-log');
+  const hdrDot = $('dp-dot-hdr');
+  const phaseEl = $('dp-phase');
+  const dotsEl = $('dp-dots');
+  const bar = $('dp-bar');
+  const ciEl = $('dp-ci');
+  const statusEl = $('dp-status');
+  const nudgeTypeEl = $('dp-nudge-type');
+  const govEl = $('dp-gov');
+  const nudgeRatEl = $('dp-nudge-rationale');
+  const btnRun = $('dp-btn-run');
+  const btnReset = $('dp-btn-reset');
+
+  let dots = [];
+
+  function ts() { return new Date().toTimeString().slice(0,8); }
+
+  function addLog(html, cls='') {
+    const d = document.createElement('div');
+    d.className = 'dp-log-line ' + cls;
+    d.innerHTML = `<span class="dp-ts">${ts()}</span>${html}`;
+    log.appendChild(d);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  function ciCls(v) {
+    if (v == null) return '';
+    if (v >= 0.75) return 'ok';
+    if (v >= 0.60) return 'warn';
+    return 'bif';
+  }
+
+  function barColor(v) {
+    if (v >= 0.75) return '#00e5a0';
+    if (v >= 0.60) return '#f5a623';
+    return '#e8445a';
+  }
+
+  function updateMetrics(ci, status, nudge, gov) {
+    const cls = ciCls(ci);
+    if (ci != null) {
+      ciEl.textContent = ci.toFixed(3);
+      ciEl.className = 'dp-metric-value ' + cls;
+      bar.style.width = Math.round(Math.min(Math.max(ci, 0), 1) * 100) + '%';
+      bar.style.background = barColor(ci);
+      hdrDot.className = 'dp-status-dot ' + (cls === 'ok' ? 'live' : cls === 'warn' ? 'warn' : 'danger');
+    }
+    if (status !== undefined) { statusEl.textContent = status || '—'; statusEl.className = 'dp-metric-value small ' + cls; }
+    if (nudge !== undefined) { nudgeTypeEl.textContent = nudge || '—'; nudgeTypeEl.className = 'dp-metric-value small ' + cls; }
+    if (gov !== undefined) { govEl.textContent = gov || '—'; }
+  }
+
+  function makeDots() {
+    dotsEl.innerHTML = '';
+    dots = [];
+    for (let i = 0; i < 15; i++) {
+      const d = document.createElement('div');
+      d.className = 'dp-dot';
+      d.title = 'Interaction ' + (i+1);
+      dotsEl.appendChild(d);
+      dots.push(d);
+    }
+  }
+
+  function setDot(i, state) {
+    if (dots[i]) dots[i].className = 'dp-dot ' + state;
+  }
+
+  function setPhase(txt) { phaseEl.textContent = txt; }
+
+  async function api(path, method='GET', body=null) {
+    const opts = { method, headers: {'Content-Type':'application/json'} };
+    if (body !== null) opts.body = JSON.stringify(body);
+    const r = await fetch(BASE + path, opts);
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      throw Object.assign(new Error('HTTP ' + r.status), { detail: err });
+    }
+    return r.json();
+  }
+
+  async function runDemo() {
+    btnRun.disabled = true;
+    log.innerHTML = '';
+    makeDots();
+    hdrDot.className = 'dp-status-dot live';
+
+    // Phase 1 — baseline
+    setPhase('phase 1 · baseline');
+    addLog('GET /demo/status — reading baseline…', 'event');
+    let baseline;
+    try {
+      baseline = await api('/demo/status');
+      const ci = baseline.cooperation_index;
+      updateMetrics(ci, baseline.status);
+      addLog(`baseline ci=<span class="dp-ci-val">${ci}</span> agents=${baseline.ecosystem_agents} sessions=${baseline.active_demo_sessions}`, ciCls(ci));
+    } catch(e) {
+      addLog('error: ' + e.message + ' — check CORS headers on /demo/* routes', 'bif');
+      btnRun.disabled = false;
+      hdrDot.className = 'dp-status-dot danger';
+      return;
+    }
+
+    // Phase 2 — register
+    setPhase('phase 2 · registering agent');
+    addLog('POST /demo/register — creating stress agent…', 'event');
+    let agentId;
+    try {
+      const reg = await api('/demo/register', 'POST', {});
+      // handle both field name variants
+      agentId = reg.agent_id ?? reg.demo_agent_id;
+      addLog(`agent registered: id=${agentId} φ=${reg.phi} ε=${reg.epsilon} status=${reg.status}`, 'event');
+    } catch(e) {
+      if (e.message.includes('429')) {
+        // rate limited — extract any existing agent id hint or let user know
+        addLog('rate limited (429) — a session may already be active. Attempting with last known agent id…', 'warn');
+        // try to continue without a fresh id — will 422 if wrong but at least shows the flow
+        agentId = null;
+      } else {
+        addLog('register error: ' + e.message, 'bif');
+        btnRun.disabled = false;
+        return;
+      }
+    }
+
+    // Phase 3 — 15 interactions
+    setPhase('phase 3 · stress interactions');
+    addLog('firing 15 stress interactions (3 s apart)…', 'event');
+
+    for (let i = 0; i < 15; i++) {
+      setDot(i, 'active');
+      try {
+        const body = agentId ? { agent_id: agentId } : {};
+        const res = await api('/demo/interact', 'POST', body);
+        const ci = res.ci_now ?? res.cooperation_index ?? res.ci;
+        const status = res.status;
+        const nudge = res.nudge_type ?? res.nudge;
+        const gov = res.governance_action ?? res.action;
+        const rationale = res.nudge_rationale ?? res.rationale ?? res.interpretation ?? '';
+        updateMetrics(ci, status, nudge, gov);
+        if (rationale) {
+          nudgeRatEl.textContent = rationale.slice(0, 220) + (rationale.length > 220 ? '…' : '');
+          nudgeRatEl.className = 'dp-nudge ' + ciCls(ci);
+        }
+        const cls = ciCls(ci);
+        addLog(`[${i+1}/15] ci=<span class="dp-ci-val">${ci != null ? ci.toFixed(4) : 'n/a'}</span> ${status} · ${nudge} · ${gov}`, cls);
+        setDot(i, cls === 'ok' ? 'done' : cls === 'warn' ? 'done' : 'danger');
+      } catch(e) {
+        addLog(`[${i+1}/15] error: ${e.message}`, 'bif');
+        setDot(i, 'danger');
+      }
+      if (i < 14) await sleep(3000);
+    }
+
+    // Phase 4 — recovery
+    setPhase('phase 4 · recovery watch');
+    addLog('interactions complete — monitoring recovery (15 s intervals × 8)…', 'event');
+    nudgeRatEl.className = 'dp-nudge';
+
+    for (let t = 0; t < 8; t++) {
+      await sleep(15000);
+      try {
+        const rec = await api('/demo/status');
+        const ci = rec.cooperation_index ?? rec.ci_now ?? rec.ci;
+        updateMetrics(ci, rec.status);
+        addLog(`[recovery +${(t+1)*15}s] ci=<span class="dp-ci-val">${ci != null ? ci.toFixed(4) : 'n/a'}</span> status=${rec.status ?? '—'}`, ciCls(ci));
+      } catch(e) {
+        addLog(`[recovery +${(t+1)*15}s] error: ${e.message}`, 'bif');
+      }
+    }
+
+    setPhase('complete');
+    hdrDot.className = 'dp-status-dot live';
+    addLog('bifurcation demonstration complete.', 'event');
+    btnRun.disabled = false;
+  }
+
+  function reset() {
+    btnRun.disabled = false;
+    log.innerHTML = '<div class="dp-log-line event">reset — press Run to start again.</div>';
+    makeDots();
+    setPhase('ready');
+    ciEl.textContent = '—'; ciEl.className = 'dp-metric-value';
+    statusEl.textContent = '—'; statusEl.className = 'dp-metric-value small';
+    nudgeTypeEl.textContent = '—'; nudgeTypeEl.className = 'dp-metric-value small';
+    govEl.textContent = '—';
+    bar.style.width = '0%'; bar.style.background = '#00e5a0';
+    hdrDot.className = 'dp-status-dot';
+    nudgeRatEl.textContent = 'Governance rationale will appear here during stress interactions.';
+    nudgeRatEl.className = 'dp-nudge';
+  }
+
+  btnRun.addEventListener('click', runDemo);
+  btnReset.addEventListener('click', reset);
+  makeDots();
+})();
+</script>
+
     </div>
   </div>
 

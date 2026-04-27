@@ -160,10 +160,12 @@ async def demo_register(request: Request, payload: DemoRegisterRequest):
     if not allowed:
         raise HTTPException(
             status_code=429,
+            headers={"Retry-After": str(retry)},
             detail={
-                "error":   "demo_rate_limited",
-                "message": f"Demo sessions are limited to 1 per {DEMO_WINDOW // 60} minutes per visitor.",
+                "error":             "demo_rate_limited",
+                "message":           f"Demo sessions are limited to 1 per {DEMO_WINDOW // 60} minutes per visitor.",
                 "retry_after_seconds": retry,
+                "hint":              f"Wait {retry} seconds then try again, or reload the dashboard.",
             }
         )
 
@@ -194,13 +196,13 @@ async def demo_register(request: Request, payload: DemoRegisterRequest):
 
     return {
         "registered":       True,
-        "demo_agent_id":    demo_agent_id,
+        "agent_id":         demo_agent_id,   # standardised field name (was demo_agent_id)
         "phi":              0.3,
         "epsilon":          7.5,
         "status":           "maturing",
         "ci_before":        ci_before,
         "max_interactions": DEMO_MAX_INTERACTIONS,
-        "next_step":        f"POST /demo/interact with agent_id='{demo_agent_id}'",
+        "next_step":        f"POST /demo/interact with agent_id='{demo_agent_id}' (no API key needed)",
         "message": (
             "Stress agent registered. phi=0.3 (low maturity), epsilon=7.5 (high plasticity). "
             f"Ecosystem CI before stress: {ci_before}. "
@@ -370,3 +372,28 @@ async def demo_ci():
             "timestamp":         time.time(),
             "message":           "Kernel initialising — retry in a few seconds."
         }
+
+@router.delete("/reset")
+async def demo_reset(request: Request):
+    """
+    Clear demo session for this IP — allows immediate re-registration.
+    Useful for presenters running back-to-back demos.
+    No API key required.
+    """
+    ip = _client_ip(request)
+    cleared_session = ip in _demo_sessions
+    _demo_sessions.pop(ip, None)
+
+    # Also clean up any demo agents from this IP's last session
+    _cleanup_demo_agents()
+
+    return {
+        "reset":   True,
+        "ip":      ip[:8] + "…",   # partial IP for confirmation, not full disclosure
+        "cleared": cleared_session,
+        "message": (
+            "Demo session cleared. You can now POST /demo/register immediately."
+            if cleared_session else
+            "No active session found for your IP. You can POST /demo/register now."
+        )
+    }
