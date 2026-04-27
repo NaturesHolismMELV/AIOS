@@ -26,6 +26,7 @@ from core.sandbox_engine import SandboxEngine
 
 from core.melv_engine import MELVKernel
 from core.gateway import router as gateway_router, set_kernel
+from api.demo_router import router as demo_router
 from core.persistence import AIOSPersistence
 from agents.implementations import create_default_ecosystem
 from agents.oxpecker_agent import OxpeckerAgent
@@ -198,6 +199,7 @@ app.add_middleware(APIKeyMiddleware)
 
 app.include_router(data_router,    prefix="/data",    tags=["data"])
 app.include_router(gateway_router, prefix="/melv",    tags=["MELVcore Gateway"])
+app.include_router(demo_router,    prefix="/demo",    tags=["Public Demo"])
 app.include_router(agents_router,  prefix="/agents",  tags=["agents"])
 app.include_router(sandbox_router, prefix="/sandbox", tags=["MELVcore Sandbox"])
 app.include_router(theorem_router, prefix="/theorem", tags=["Cooperation Theorem"])

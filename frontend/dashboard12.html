@@ -227,6 +227,7 @@ KEY ENDPOINTS:
 GET  /health
      Returns: {"status":"ok","version":"2.6.0"}
 
+GET  /demo/ci           (public — use during demo for CI polling)
 GET  /api/cooperation_index
      Returns: {"cooperation_index": float, "target": 0.75, "healthy": bool}
 
@@ -244,6 +245,27 @@ GET  /api/ci_history?n=200
 
 GET  /api/agents
      Returns all 257 registered agent profiles
+
+PUBLIC DEMO ENDPOINTS (no API key required — use these for the demo):
+
+GET  /demo/status
+     Public health check. Returns CI, agent count, demo availability.
+
+POST /demo/register
+     Body: {"name":"BIFURCATION-TEST","domain":"stress_test"} (or just {})
+     Registers the stress agent with fixed phi=0.3, epsilon=7.5.
+     Returns demo_agent_id. Rate limited: 1 session per IP per 10 minutes.
+
+POST /demo/interact
+     Body: {"agent_id":"<demo_agent_id>"}
+     Fires one stress interaction (cost=9.5, benefit=0.5 fixed server-side).
+     Returns: {status, i_factor, beta_i, action, nudge_type, ci_now, interpretation}
+     Max 20 interactions per demo agent.
+
+GET  /demo/ci
+     Public CI snapshot. Use for polling during recovery narration.
+
+AUTHENTICATED ENDPOINTS (require X-API-Key header):
 
 POST /melv/register     [AUTH]
      Body: {name, domain, phi, epsilon, capabilities}
@@ -275,19 +297,19 @@ interacting efficiently. The i-factors are low — costs are well below benefits
 for every pair. This is what thermodynamic cooperation looks like at rest."
 
 STEP 2 — REGISTER STRESS AGENT
-POST /melv/register with:
-  name="BIFURCATION-TEST", domain="stress_test", phi=0.3, epsilon=7.5
-Save the returned agent_id.
+POST /demo/register (no API key needed)
+  Body: {"name":"BIFURCATION-TEST","domain":"stress_test"}
+  phi=0.3 and epsilon=7.5 are fixed by the server for demo reproducibility.
+Save the returned demo_agent_id.
 Narrate: "We have registered a disruptive agent. Low maturity (φ=0.3 — barely
 established), near-maximum plasticity (ε=7.5 — burns resources reconfiguring).
 The ecosystem doesn't know it's a stress agent. It just looks like a struggling
 newcomer."
 
 STEP 3 — FIRE STRESS INTERACTIONS (15 iterations, 3s pause each)
-POST /melv/interact with:
-  agent_a=<stress_agent_id>, agent_b="RESEARCH-ecce"
-  cost=9.5, benefit=0.5, phi_a=0.3, phi_b=0.87
-  resource_type="compute"
+POST /demo/interact (no API key needed)
+  Body: {"agent_id":"<demo_agent_id_from_register>"}
+  cost/benefit/target are fixed server-side for demo reproducibility.
 After EACH interaction, report:
   - The returned status (expect: "bifurcation")
   - The i_factor (expect: 19.0)
@@ -966,9 +988,31 @@ Version: MELVcore v2.6.0 | Session 30 | April 2026
   <div class="nav-item" data-target="sec-persistence" style="margin-top:4px"><div class="nav-dot" style="background:#f59e0b"></div>Persistence <span style="font-family:'Space Mono',monospace;font-size:12px;color:#f59e0b;margin-left:auto">S12</span></div>
   <div class="nav-item" data-target="sec-gateway" style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px"><div class="nav-dot" style="background:#a78bfa"></div>Gateway API</div>
 
+
+  <!-- SESSION 30: API Key Input Panel -->
+  <div style="margin:12px 8px 0 8px;padding:10px;background:rgba(0,207,180,.06);border:1px solid rgba(0,207,180,.18);border-radius:4px">
+    <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--coop);letter-spacing:.1em;margin-bottom:6px">⬡ API KEY</div>
+    <input id="api-key-input" type="password"
+      placeholder="Paste key here…"
+      autocomplete="off" spellcheck="false"
+      style="width:100%;box-sizing:border-box;background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:3px;padding:5px 7px;font-family:'Space Mono',monospace;font-size:11px;color:var(--text);outline:none;margin-bottom:5px"
+      onkeydown="if(event.key==='Enter')saveApiKey()"
+    />
+    <div style="display:flex;gap:5px;align-items:center">
+      <button id="api-key-save-btn" onclick="saveApiKey()"
+        style="font-family:'Space Mono',monospace;font-size:11px;padding:3px 10px;background:rgba(0,207,180,.12);border:1px solid rgba(0,207,180,.35);border-radius:3px;color:var(--coop);cursor:pointer;white-space:nowrap">
+        Save
+      </button>
+      <span id="api-key-status"
+        style="font-family:'Space Mono',monospace;font-size:10px;color:var(--text-dim);line-height:1.3">
+        No key — demo mode only
+      </span>
+    </div>
+  </div>
+
   <div class="sidebar-foot">
     MELVcore v2.6.0<br>
-    Sessions 1–29 complete<br>
+    Sessions 1–30 complete<br>
     Blueprint for Harmony<br>
     © Ecotao Enterprises<br>
     L.W. Evans
@@ -2764,6 +2808,67 @@ Version: MELVcore v2.6.0 | Session 30 | April 2026
 </div>
 
 <script>
+
+// ── SESSION 30: API KEY MANAGEMENT ──────────────────────────────────────────
+// Reads the API key from sessionStorage (set via the key input in the header).
+// Falls back to empty string — unauthenticated calls will get 401 for protected
+// endpoints, which is the correct failure mode.
+//
+// Usage: headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' }
+
+function getApiKey() {
+  return sessionStorage.getItem('melv_api_key') || '';
+}
+
+function setApiKey(key) {
+  if (key && key.trim()) {
+    sessionStorage.setItem('melv_api_key', key.trim());
+  } else {
+    sessionStorage.removeItem('melv_api_key');
+  }
+}
+
+function getAuthHeaders() {
+  const key = getApiKey();
+  return key ? { 'X-API-Key': key } : {};
+}
+
+// Called from the key input UI
+function saveApiKey() {
+  const input = document.getElementById('api-key-input');
+  if (!input) return;
+  const key = input.value.trim();
+  setApiKey(key);
+  const btn = document.getElementById('api-key-save-btn');
+  const status = document.getElementById('api-key-status');
+  if (key) {
+    if (btn) { btn.textContent = '✓ Saved'; btn.style.color = 'var(--coop)'; }
+    if (status) { status.textContent = 'Key active — authenticated endpoints enabled'; status.style.color = 'var(--coop)'; }
+    setTimeout(() => {
+      if (btn) { btn.textContent = 'Save'; btn.style.color = ''; }
+    }, 2000);
+  } else {
+    if (btn) { btn.textContent = 'Cleared'; btn.style.color = '#f59e0b'; }
+    if (status) { status.textContent = 'No key — using public /demo/ endpoints only'; status.style.color = '#f59e0b'; }
+    setTimeout(() => {
+      if (btn) { btn.textContent = 'Save'; btn.style.color = ''; }
+    }, 2000);
+  }
+}
+
+// Restore key from sessionStorage on page load
+window.addEventListener('DOMContentLoaded', () => {
+  const input = document.getElementById('api-key-input');
+  const status = document.getElementById('api-key-status');
+  const existing = getApiKey();
+  if (input && existing) {
+    input.value = existing;
+    if (status) { status.textContent = 'Key active — authenticated endpoints enabled'; status.style.color = 'var(--coop)'; }
+  }
+});
+// ── END API KEY MANAGEMENT ───────────────────────────────────────────────────
+
+
 // ── CONFIG ────────────────────────────────────────────────────────────────
 const API = '/api';
 let lastInteractions = [];
@@ -3265,7 +3370,7 @@ async function fetchEpsilonDecomp() {
   try {
     const r = await fetch('/sandbox/assess/epsilon-profile', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify({ agent_ids: [], epsilon_overrides: {}, tool_categories: {} })
     });
     if (!r.ok) return;
@@ -3448,7 +3553,7 @@ async function computeArchEpsilon() {
   try {
     const r = await fetch('/sandbox/assess/epsilon-profile', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify({ agent_ids: [], epsilon_overrides: {}, tool_categories })
     });
     if (!r.ok) throw new Error('API error ' + r.status);
@@ -3508,7 +3613,7 @@ async function gatewayRegister() {
   try {
     const r = await fetch(`${GW}/register`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, domain, phi, capabilities: caps })
     });
     const d = await r.json();
@@ -3564,7 +3669,7 @@ async function gatewayInteract() {
 
     const r = await fetch(`${GW}/interact`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
     const d = await r.json();
@@ -3680,7 +3785,7 @@ async function updateGatewayAgents() {
   const el = document.getElementById('gw-agents-list');
   if (!el) return;
   try {
-    const r = await fetch(`${GW}/agents`);
+    const r = await fetch(`${GW}/agents`, { headers: getAuthHeaders() });
     const d = await r.json();
     const agents = d.gateway_agents || [];
     if (agents.length === 0) {
@@ -3839,7 +3944,7 @@ async function runWriter() {
   try {
     const r = await fetch(`${AGENTS_API}/writer/execute`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify({ task_text: task, context, max_tokens: 512 }),
     });
     const d = await r.json();
@@ -3899,7 +4004,7 @@ async function runPlanner() {
   try {
     const r = await fetch(`${AGENTS_API}/planner/execute`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify({ goal, constraints, max_tokens: 400 }),
     });
     const d = await r.json();
@@ -3963,7 +4068,7 @@ const PROFILE_COLORS = {
 async function updateCosts() {
   if (_poll.blocked) return;
   try {
-    const r = await fetch(COSTS_API);
+    const r = await fetch(COSTS_API, { headers: getAuthHeaders() });
     if (!r.ok) { if (r.status === 429) _429block(); throw new Error(`HTTP ${r.status}`); }
     const d = await r.json();
 
@@ -4414,7 +4519,7 @@ async function sbSubmit() {
   try {
     const resp = await fetch(`${SANDBOX_API}/submit`, {
       method: 'POST',
-      headers: {'Content-Type':'application/json'},
+      headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
     const data = await resp.json();
@@ -4706,7 +4811,7 @@ async function calcSharedStateRisk() {
   try {
     const resp = await fetch('/sandbox/assess/shared-state-risk', {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
+      headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify({ epsilon, tool_count, shared_state, agent_count })
     });
     const data = await resp.json();

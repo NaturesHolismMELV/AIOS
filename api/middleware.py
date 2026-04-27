@@ -60,6 +60,10 @@ EXEMPT_PATHS = {"/", "/health", "/api/health", "/docs", "/openapi.json", "/favic
 # Paths that require API key when AIOS_API_KEY is set
 PROTECTED_PATHS_PREFIX = ("/sandbox/", "/melv/", "/api/beta", "/theorem/")
 
+# Paths that are always public — exempt from API key even when AIOS_API_KEY is set
+# /demo/ provides the public bifurcation demonstration (Session 30)
+PUBLIC_PATHS_PREFIX = ("/demo/",)
+
 
 # ── RATE LIMIT MIDDLEWARE ──────────────────────────────────────────────────
 
@@ -114,7 +118,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         path = request.url.path
 
         # Exempt paths bypass all rate limiting
-        if path in EXEMPT_PATHS or path.startswith("/frontend/"):
+        # /demo/ has its own per-IP session rate limit in demo_router.py
+        if path in EXEMPT_PATHS or path.startswith("/frontend/") or path.startswith("/demo/"):
             return await call_next(request)
 
         # Startup grace period — bypass rate limiting on first load
@@ -205,6 +210,10 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         path = request.url.path
+
+        # Public paths — always accessible regardless of API key (e.g. /demo/)
+        if any(path.startswith(prefix) for prefix in PUBLIC_PATHS_PREFIX):
+            return await call_next(request)
 
         # Check if this path requires a key
         requires_key = any(
