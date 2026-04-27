@@ -1096,37 +1096,6 @@ Version: MELVcore v2.6.0 | Session 30 | April 2026
   </div>
 
   <!-- Agent Registry + Omega -->
-  <div class="g2" id="sec-agents">
-    <div class="card">
-      <div class="card-title">◉ Agent Registry <span class="live">● LIVE</span></div>
-      <table class="tbl">
-        <thead>
-          <tr>
-            <th>Agent</th><th>i-factor</th><th>φ</th><th>ε</th><th>Status</th>
-          </tr>
-        </thead>
-        <tbody id="agent-tbody"><tr><td colspan="5" class="loading">Loading agents…</td></tr></tbody>
-      </table>
-    </div>
-
-    <div class="card" id="sec-omega">
-      <div class="card-title">⬡ OmegaNet — Service Coupling (Ω)</div>
-      <canvas id="omega-canvas"></canvas>
-      <div style="display:flex;gap:12px;margin-top:8px;font-family:'Space Mono',monospace;font-size:12px;color:#a0c8e8">
-        <span>● Agent</span>
-        <span style="color:var(--coop)">— Cooperative</span>
-        <span style="color:var(--thresh)">— Threshold</span>
-        <span style="margin-left:auto">β_service = <span style="color:var(--accent)" id="bs-val">—</span></span>
-      </div>
-    </div>
-  </div>
-
-<!-- ══════════════════════════════════════════════════════════════
-       SESSION 30b — BIFURCATION DEMO PANEL
-       Self-contained live demo. No API key required.
-       Source: bifurcation-demo-panel.html (independent Claude session)
-       Server fixes: CORS, agent_id field, /demo/reset endpoint.
-       ══════════════════════════════════════════════════════════════ -->
   <div id="sec-demo" style="padding:0 0 8px 0">
     <div class="card" style="padding:0;overflow:hidden;border:none;background:transparent">
 <style>
@@ -1657,6 +1626,39 @@ Version: MELVcore v2.6.0 | Session 30 | April 2026
 
     </div>
   </div>
+
+  <div class="g2" id="sec-agents">
+    <div class="card">
+      <div class="card-title">◉ Agent Registry <span class="live">● LIVE</span></div>
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>Agent</th><th>i-factor</th><th>φ</th><th>ε</th><th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="agent-tbody"><tr><td colspan="5" class="loading">Loading agents…</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="card" id="sec-omega">
+      <div class="card-title">⬡ OmegaNet — Service Coupling (Ω)</div>
+      <canvas id="omega-canvas"></canvas>
+      <div style="display:flex;gap:12px;margin-top:8px;font-family:'Space Mono',monospace;font-size:12px;color:#a0c8e8">
+        <span>● Agent</span>
+        <span style="color:var(--coop)">— Cooperative</span>
+        <span style="color:var(--thresh)">— Threshold</span>
+        <span style="margin-left:auto">β_service = <span style="color:var(--accent)" id="bs-val">—</span></span>
+      </div>
+    </div>
+  </div>
+
+<!-- ══════════════════════════════════════════════════════════════
+       SESSION 30b — BIFURCATION DEMO PANEL
+       Self-contained live demo. No API key required.
+       Source: bifurcation-demo-panel.html (independent Claude session)
+       Server fixes: CORS, agent_id field, /demo/reset endpoint.
+       ══════════════════════════════════════════════════════════════ -->
+
 
   <!-- Bifurcation Events + β Provisioning -->
   <div class="g2" id="sec-events">
