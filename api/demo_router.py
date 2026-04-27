@@ -115,7 +115,7 @@ async def demo_status():
 
     try:
         kernel = get_kernel()
-        ci     = round(kernel.compute_cooperation_index(), 4)
+        ci     = round(kernel.cooperation_index(), 4)
         agents = len(kernel.agents)
         kernel_ready = True
     except RuntimeError:
@@ -190,7 +190,7 @@ async def demo_register(request: Request, payload: DemoRegisterRequest):
     _demo_agents[demo_agent_id] = (time.time(), 0)
 
     # Read current CI for baseline context
-    ci_before = round(kernel.compute_cooperation_index(), 4)
+    ci_before = round(kernel.cooperation_index(), 4)
 
     return {
         "registered":       True,
@@ -321,7 +321,7 @@ async def demo_interact(request: Request, payload: DemoInteractRequest):
     )
 
     # Current CI after this interaction
-    ci_now = round(kernel.compute_cooperation_index(), 4)
+    ci_now = round(kernel.cooperation_index(), 4)
 
     interactions_remaining = DEMO_MAX_INTERACTIONS - (interaction_count + 1)
 
@@ -355,7 +355,7 @@ async def demo_ci():
     """
     try:
         kernel = get_kernel()
-        ci     = kernel.compute_cooperation_index()
+        ci     = kernel.cooperation_index()
         return {
             "cooperation_index": round(ci, 4),
             "target":            0.75,
