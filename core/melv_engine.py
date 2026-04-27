@@ -589,6 +589,20 @@ class MELVKernel:
             self._persistence.save_agent(profile)
         return profile
 
+    def unregister_agent(self, agent_id: str) -> bool:
+        """
+        Remove an agent from the ecosystem and delete from persistence.
+        Returns True if found and removed, False if not found.
+        Used by demo_router to clean up stress agents after demo sessions.
+        Session 30b — demo agent lifecycle management.
+        """
+        if agent_id not in self.agents:
+            return False
+        del self.agents[agent_id]
+        if self._persistence:
+            self._persistence.delete_agent(agent_id)
+        return True
+
     def get_agent(self, agent_id: str) -> Optional[AgentProfile]:
         return self.agents.get(agent_id)
 

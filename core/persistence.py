@@ -182,6 +182,22 @@ class AIOSPersistence:
         except Exception as e:
             logger.warning("save_agent failed: %s", e)
 
+    def delete_agent(self, agent_id: str) -> bool:
+        """
+        Delete an agent from the SQLite agents table.
+        Returns True if a row was deleted, False if agent_id was not found.
+        Session 30b — demo agent lifecycle management.
+        """
+        try:
+            cur = self._conn.execute(
+                "DELETE FROM agents WHERE agent_id = ?", (agent_id,)
+            )
+            self._conn.commit()
+            return cur.rowcount > 0
+        except Exception as e:
+            logger.warning("delete_agent failed for %s: %s", agent_id, e)
+            return False
+
     def load_agents(self) -> list[dict]:
         """Return all persisted agent dicts."""
         try:

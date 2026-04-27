@@ -241,12 +241,20 @@ async def demo_interact(request: Request, payload: DemoInteractRequest):
     # Check interaction cap
     registered_at, interaction_count = _demo_agents[agent_id]
     if interaction_count >= DEMO_MAX_INTERACTIONS:
+        # Auto-deregister the stress agent — it has done its job
+        try:
+            kernel = get_kernel()
+            kernel.unregister_agent(agent_id)
+        except Exception:
+            pass
+        del _demo_agents[agent_id]
         raise HTTPException(
-            status_code=429,
+            status_code=410,
             detail={
-                "error":   "demo_interaction_limit",
-                "message": f"Demo interaction limit ({DEMO_MAX_INTERACTIONS}) reached for this agent. "
-                           f"Start a new session with POST /demo/register.",
+                "error":   "demo_session_complete",
+                "message": f"Demo complete — {DEMO_MAX_INTERACTIONS} interactions fired. "
+                           f"Stress agent removed from ecosystem. ",
+                "next_step": "POST /demo/register to start a new session.",
             }
         )
 
@@ -297,8 +305,17 @@ async def demo_interact(request: Request, payload: DemoInteractRequest):
         resource_type = RESOURCE_TYPE,
     )
 
-    # Update interaction count
-    _demo_agents[agent_id] = (registered_at, interaction_count + 1)
+    # Update interaction count — auto-deregister on final interaction
+    new_count = interaction_count + 1
+    if new_count >= DEMO_MAX_INTERACTIONS:
+        # Final interaction — clean up stress agent from ecosystem
+        try:
+            kernel.unregister_agent(agent_id)
+        except Exception:
+            pass
+        _demo_agents.pop(agent_id, None)
+    else:
+        _demo_agents[agent_id] = (registered_at, new_count)
 
     # Build nudge via NudgeEngine
     from core.melv_engine import KernelAction
@@ -376,24 +393,100 @@ async def demo_ci():
 @router.delete("/reset")
 async def demo_reset(request: Request):
     """
-    Clear demo session for this IP — allows immediate re-registration.
+    Clear demo session for this IP and deregister any active stress agent.
     Useful for presenters running back-to-back demos.
     No API key required.
     """
     ip = _client_ip(request)
     cleared_session = ip in _demo_sessions
     _demo_sessions.pop(ip, None)
-
-    # Also clean up any demo agents from this IP's last session
     _cleanup_demo_agents()
 
+    # Deregister any active demo agents (by scanning for demo_ prefix)
+    removed = []
+    try:
+        kernel = get_kernel()
+        to_remove = [
+            aid for aid in list(kernel.agents.keys())
+            if aid.startswith("demo_") or aid.startswith("gateway_stress_")
+        ]
+        # Only remove those registered by this IP session (best effort — remove all orphaned demo agents)
+        for aid in to_remove:
+            if kernel.unregister_agent(aid):
+                removed.append(aid)
+                _demo_agents.pop(aid, None)
+    except Exception:
+        pass
+
     return {
-        "reset":   True,
-        "ip":      ip[:8] + "…",   # partial IP for confirmation, not full disclosure
-        "cleared": cleared_session,
+        "reset":           True,
+        "ip":              ip[:8] + "…",
+        "cleared_session": cleared_session,
+        "agents_removed":  removed,
         "message": (
-            "Demo session cleared. You can now POST /demo/register immediately."
-            if cleared_session else
-            "No active session found for your IP. You can POST /demo/register now."
+            f"Session cleared. {len(removed)} stress agent(s) removed. "
+            "You can now POST /demo/register immediately."
+        )
+    }
+
+
+@router.delete("/purge")
+async def demo_purge(request: Request):
+    """
+    Emergency cleanup — remove ALL demo/stress agents from the ecosystem.
+    Use this when accumulated stress agents are degrading the live CI.
+
+    Identifies agents by:
+      - agent_id starting with 'demo_'
+      - agent_id starting with 'gateway_stress_'
+      - name containing 'BIFURCATION'
+      - domain == 'stress_test' AND phi < 0.4
+
+    No API key required — this is a self-healing public endpoint.
+    Rate limited only by the ecosystem impact (removes agents, not interactions).
+    """
+    _cleanup_demo_agents()
+
+    removed = []
+    not_found = []
+    try:
+        kernel = get_kernel()
+        candidates = [
+            (aid, a) for aid, a in list(kernel.agents.items())
+            if (
+                aid.startswith("demo_") or
+                aid.startswith("gateway_stress_") or
+                "BIFURCATION" in (a.name or "") or
+                ((a.domain or "") == "stress_test" and (a.phi or 1.0) < 0.4)
+            )
+        ]
+        for aid, _ in candidates:
+            if kernel.unregister_agent(aid):
+                removed.append(aid)
+                _demo_agents.pop(aid, None)
+            else:
+                not_found.append(aid)
+
+        ci_after = round(kernel.cooperation_index(), 4)
+
+    except RuntimeError:
+        ci_after = None
+
+    # Clear all demo sessions so fresh registrations work immediately
+    _demo_sessions.clear()
+
+    return {
+        "purged":          len(removed),
+        "agents_removed":  removed,
+        "not_found":       not_found,
+        "ci_after":        ci_after,
+        "sessions_cleared": True,
+        "message": (
+            f"Purged {len(removed)} stress/demo agent(s) from ecosystem. "
+            f"All demo sessions cleared. "
+            f"Ecosystem CI: {ci_after}. "
+            "The ecosystem should recover within 60-120 seconds."
+            if removed else
+            "No demo/stress agents found. Ecosystem is clean."
         )
     }
