@@ -178,10 +178,30 @@ def _perturbed_epsilon(agent_id: str, base_epsilon: float) -> float:
 STC_REFERENCE_SECONDS = 120.0
 
 # Diagnosis thresholds (② theoretical, principled)
-VOLATILE_EPSILON_THRESHOLD   = 6.0   # ε_intrinsic ≥ 6.0 → AGENT_VOLATILE
-ENV_BOTTLENECK_THRESHOLD     = 1.5   # ε_environmental ≥ 1.5 → ENV_BOTTLENECKED
-LEGACY_PHI_THRESHOLD         = 0.35  # φ ≤ 0.35 AND high ε → LEGACY_CANDIDATE
-LEGACY_EPSILON_THRESHOLD     = 4.0   # ε_effective ≥ 4.0 for LEGACY badge
+VOLATILE_EPSILON_THRESHOLD   = 6.0   # ε_intrinsic ≥ 6.0 (necessary but not sufficient)
+ENV_BOTTLENECK_THRESHOLD     = 1.5   # ε_ecosystem ≥ 1.5 → ENV_BOTTLENECKED
+LEGACY_PHI_THRESHOLD         = 0.35  # retained for backward compat — see RANGE_MISMATCH
+LEGACY_EPSILON_THRESHOLD     = 4.0   # retained for backward compat — see RANGE_MISMATCH
+
+# Session 30c (v2.7.0): ε semantic realignment
+# AGENT_VOLATILE fires only when ε_intrinsic exceeds what φ and β can support.
+# High ε alone is adaptive range (an asset), not volatility (a liability).
+# Mismatch = high adaptive range in an environment that cannot support it.
+VOLATILE_PHI_CEILING         = 0.65  # φ below this = niche not mature enough to support high ε
+VOLATILE_BETA_CEILING        = 1.0   # β below this = environment not rich enough to support high ε
+
+# RANGE_MISMATCH: replaces LEGACY_CANDIDATE with correct framing.
+# Low φ + high ε = high adaptive range in an immature niche. Not legacy — developing.
+RANGE_MISMATCH_PHI_CEILING   = 0.35  # same trigger as legacy: φ ≤ 0.35
+RANGE_MISMATCH_EPS_FLOOR     = 4.0   # ε_effective ≥ 4.0
+
+# STC support factor: high φ × β relative to ε_effective reduces STC.
+# A high-ε agent in a supportive environment converges to cooperation quickly.
+STC_SUPPORT_REFERENCE        = 0.5   # φ × β / ε_effective at which full support applies (② theoretical)
+STC_SUPPORT_REDUCTION        = 0.5   # maximum STC reduction when fully supported
+
+# Mismatch fraction threshold for dominant_bottleneck = "mismatch"
+MISMATCH_DOMINANT_THRESHOLD  = 0.25  # >25% agents mismatched → ecosystem bottleneck is mismatch
 
 
 @dataclass
@@ -205,9 +225,11 @@ class EpsilonProfile:
     It is a fixed thermal resistance. Provisioning β is futile against it.
 
     Diagnosis badges (mutually non-exclusive):
-      AGENT_VOLATILE      — ε_intrinsic ≥ 6.0: agent itself is the plasticity source
-      ENV_BOTTLENECKED    — ε_ecosystem ≥ 1.5: infrastructure is amplifying cost
-      LEGACY_CANDIDATE    — low φ AND high ε_effective: architectural replacement candidate
+      AGENT_VOLATILE      — ε_intrinsic ≥ 6.0 AND φ < 0.65 AND β < 1.0:
+                            adaptive range exceeds niche support (mismatch, not pathology)
+      ENV_BOTTLENECKED    — ε_ecosystem ≥ 1.5: infrastructure friction amplifying cost
+      RANGE_MISMATCH      — φ ≤ 0.35 AND ε_effective ≥ 4.0: high adaptive range in
+                            immature niche — developing agent, not legacy (Session 30c)
       ARCH_BOUNDARY_HIGH  — ε_architectural > 3.0: β provisioning capped; arch
                             recommendation fired instead
 
@@ -1522,18 +1544,41 @@ class MELVKernel:
         beta_mean     = round(self.beta.mean(), 4)
 
         # STC: scale from reference (ε=3.0, β_mean=1.0 → STC_REFERENCE_SECONDS)
+        # Session 30c: support factor — when φ × β is high relative to ε_effective,
+        # the agent's adaptive range is well-supported and convergence is faster.
+        # A high-ε agent in a mature, well-resourced niche converges as quickly
+        # as a lower-ε agent in a sparse environment.
         eps_ref = 3.0
-        stc = STC_REFERENCE_SECONDS * (eps_effective / eps_ref) * (1.0 / max(beta_mean, 0.01))
-        stc = round(stc, 1)
+        base_stc = STC_REFERENCE_SECONDS * (eps_effective / eps_ref) * (1.0 / max(beta_mean, 0.01))
 
-        # ── Diagnosis badges ────────────────────────────────────────────────
+        # Support factor: φ × β / ε_effective relative to reference
+        support_ratio = (agent.phi * beta_mean) / (eps_effective + 0.001)
+        support_factor = min(support_ratio / STC_SUPPORT_REFERENCE, 1.0)
+        stc = base_stc * (1.0 - STC_SUPPORT_REDUCTION * support_factor)
+        stc = round(max(stc, 1.0), 1)   # floor at 1 second
+
+        # ── Diagnosis badges (Session 30c: ε semantic realignment) ────────────
+        # High ε is adaptive range, not volatility. Badges fire on MISMATCH:
+        # the agent's adaptive range exceeds what its niche (φ) and environment (β) support.
         badges = []
-        if eps_intrinsic >= VOLATILE_EPSILON_THRESHOLD:
+
+        # AGENT_VOLATILE: high ε AND insufficient φ AND insufficient β support
+        # A mature agent (high φ) or a well-resourced agent (high β) can support high ε.
+        if (eps_intrinsic >= VOLATILE_EPSILON_THRESHOLD
+                and agent.phi < VOLATILE_PHI_CEILING
+                and beta_mean < VOLATILE_BETA_CEILING):
             badges.append("AGENT_VOLATILE")
+
         if eps_ecosystem >= ENV_BOTTLENECK_THRESHOLD:
             badges.append("ENV_BOTTLENECKED")
-        if agent.phi <= LEGACY_PHI_THRESHOLD and eps_effective >= LEGACY_EPSILON_THRESHOLD:
-            badges.append("LEGACY_CANDIDATE")
+
+        # RANGE_MISMATCH: replaces LEGACY_CANDIDATE. High adaptive range in an immature
+        # niche. Not legacy architecture — developing agent that needs φ growth or
+        # a richer β environment. Backward-compat alias LEGACY_CANDIDATE also appended.
+        if agent.phi <= RANGE_MISMATCH_PHI_CEILING and eps_effective >= RANGE_MISMATCH_EPS_FLOOR:
+            badges.append("RANGE_MISMATCH")
+            badges.append("LEGACY_CANDIDATE")   # backward-compat alias — deprecated v2.8.0
+
         if eps_architectural > ARCH_RECOMMENDATION_THRESHOLD:
             badges.append("ARCH_BOUNDARY_HIGH")
 
@@ -1565,23 +1610,26 @@ class MELVKernel:
             )
         if "AGENT_VOLATILE" in badges:
             lines.append(
-                f"AGENT_VOLATILE: ε_intrinsic={eps_intrinsic:.2f} exceeds threshold "
-                f"{VOLATILE_EPSILON_THRESHOLD}. The performance problem is intrinsic — "
-                "the agent itself is the source of excess plasticity cost."
+                f"AGENT_VOLATILE: ε_intrinsic={eps_intrinsic:.2f} with φ={agent.phi:.3f} "
+                f"and β_mean={beta_mean:.3f}. Adaptive range exceeds current niche support — "
+                f"this is a mismatch, not an intrinsic fault. "
+                f"Provision β to raise environment richness, or allow φ to develop through "
+                "task specialisation. High ε is an asset in the right conditions."
             )
         if "ENV_BOTTLENECKED" in badges:
             lines.append(
                 f"ENV_BOTTLENECKED: ε_ecosystem={eps_ecosystem:.2f} exceeds threshold "
-                f"{ENV_BOTTLENECK_THRESHOLD}. The performance problem is environmental — "
-                "infrastructure resource scarcity is amplifying interaction costs. "
-                "Provisioning β will reduce this component directly."
+                f"{ENV_BOTTLENECK_THRESHOLD}. Infrastructure friction is amplifying "
+                "interaction costs. Provisioning β will reduce this component directly."
             )
-        if "LEGACY_CANDIDATE" in badges:
+        if "RANGE_MISMATCH" in badges:
             lines.append(
-                f"LEGACY_CANDIDATE: φ={agent.phi:.3f} (≤{LEGACY_PHI_THRESHOLD}) "
-                f"with ε_effective={eps_effective:.2f} (≥{LEGACY_EPSILON_THRESHOLD}). "
-                "Low maturity combined with high plasticity cost suggests legacy architecture. "
-                "Consider replacement or domain reassignment."
+                f"RANGE_MISMATCH: φ={agent.phi:.3f} (≤{RANGE_MISMATCH_PHI_CEILING}) "
+                f"with ε_effective={eps_effective:.2f} (≥{RANGE_MISMATCH_EPS_FLOOR}). "
+                "High adaptive range in an immature niche. This agent has broad capability "
+                "but has not yet specialised. Allow φ to develop through task consistency, "
+                "or reassign to a richer β environment. Do not replace — "
+                "the adaptive range is an asset waiting for the right conditions."
             )
         if "ARCH_BOUNDARY_HIGH" in badges:
             lines.append(
@@ -1666,8 +1714,19 @@ class MELVKernel:
         mean_eff   = round(sum(p["epsilon_effective"]     for p in profiles) / n, 4)
         mean_stc   = round(sum(p["stc_seconds"]           for p in profiles) / n, 1)
 
-        if mean_intr > mean_eco * 1.5:
-            dominant = "agent"
+        # Session 30c: dominant_bottleneck uses mismatch fraction, not raw ε comparison.
+        # An ecosystem of healthy high-ε agents (high φ, high β) is NOT agent-bottlenecked.
+        # Mismatch = agents whose adaptive range exceeds their niche support.
+        mismatched = sum(
+            1 for p in profiles
+            if (p.get("epsilon_intrinsic", 0) >= VOLATILE_EPSILON_THRESHOLD
+                and p.get("phi", 1.0) < VOLATILE_PHI_CEILING
+                and p.get("beta_mean", 1.0) < VOLATILE_BETA_CEILING)
+        )
+        mismatch_fraction = mismatched / n if n > 0 else 0.0
+
+        if mismatch_fraction > MISMATCH_DOMINANT_THRESHOLD:
+            dominant = "mismatch"
         elif mean_eco > mean_intr * 1.5:
             dominant = "environment"
         else:

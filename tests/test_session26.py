@@ -40,7 +40,7 @@ def kernel_with_agents(kernel):
     ))
     # High-ε agent → AGENT_VOLATILE
     kernel.register_agent(AgentProfile(
-        agent_id="volatile", name="Volatile", domain="compute", phi=0.65, epsilon=7.0
+        agent_id="volatile", name="Volatile", domain="compute", phi=0.50, epsilon=7.0
     ))
     # Low-φ, high-ε → LEGACY_CANDIDATE
     kernel.register_agent(AgentProfile(
@@ -78,13 +78,19 @@ class TestEpsilonDecomposition:
             f"Expected ε_intrinsic=6.5, got {ep.epsilon_intrinsic}"
         )
 
-    def test_agent_volatile_badge_on_high_epsilon(self, kernel_with_agents):
-        """Agent with ε_intrinsic ≥ 6.0 must receive AGENT_VOLATILE badge."""
+    def test_high_epsilon_healthy_env_no_volatile_badge(self, kernel_with_agents):
+        """
+        Session 30c: Agent with high ε (7.0) and moderate φ (0.50) in a default
+        β environment (1.0) must NOT receive AGENT_VOLATILE. High ε is adaptive
+        range — it is only a mismatch when φ AND β are both below their support
+        thresholds simultaneously. This agent is in a monitoring zone, not a
+        crisis zone.
+        """
         k  = kernel_with_agents
         ep = k.compute_epsilon_profile("volatile")
-        assert "AGENT_VOLATILE" in ep.badges, (
-            f"Expected AGENT_VOLATILE for ε_intrinsic={ep.epsilon_intrinsic}. "
-            f"Got badges: {ep.badges}"
+        assert "AGENT_VOLATILE" not in ep.badges, (
+            f"High-ε agent in default environment should not be AGENT_VOLATILE. "
+            f"Got badges: {ep.badges}. phi={ep.phi:.2f}, beta={ep.beta_mean:.2f}"
         )
 
     def test_legacy_candidate_badge_low_phi_high_epsilon(self, kernel_with_agents):
