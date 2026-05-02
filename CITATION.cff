@@ -1,0 +1,71 @@
+cff-version: 1.2.0
+message: "If you use MELVcore in your research, please cite it as below."
+type: software
+title: "MELVcore: A Thermodynamic Governance Kernel for Multi-Agent AI Systems"
+abstract: >
+  MELVcore is an open-source governance kernel that monitors and resolves
+  resource contention in multi-agent AI ecosystems using principles derived
+  from the Modified Energetic Lotka-Volterra (MELV) framework. It implements
+  a cooperation index (CI) calibrated to an empirically derived bifurcation
+  threshold (i_critical = 0.9995 ± 0.029, R² = 0.9248), below which
+  cooperative equilibria are thermodynamically inevitable. The platform
+  includes a three-scalar epsilon decomposition, sigmoid quorum gate,
+  Oxpecker thermodynamic recycling, and a sandbox certification engine.
+authors:
+  - family-names: "Evans"
+    given-names: "Laurence W."
+    orcid: "https://orcid.org/0009-0001-0963-1840"
+    affiliation: "Independent Researcher, Cape Town, South Africa"
+version: "2.7.0"
+date-released: "2026-05-02"
+license: "Apache-2.0"
+repository-code: "https://github.com/NaturesHolismMELV/AIOS"
+doi: "10.5281/zenodo.19665563"
+url: "https://doi.org/10.5281/zenodo.19665563"
+keywords:
+  - "multi-agent systems"
+  - "AI governance"
+  - "thermodynamics"
+  - "cooperation"
+  - "Lotka-Volterra"
+  - "bifurcation"
+  - "agent-based model"
+  - "resource contention"
+references:
+  - type: article
+    title: "Spatial structure, cooperation and competition in biofilms"
+    authors:
+      - family-names: "Nadell"
+        given-names: "Carey D."
+      - family-names: "Drescher"
+        given-names: "Knut"
+      - family-names: "Foster"
+        given-names: "Kevin R."
+    journal: "Nature Reviews Microbiology"
+    volume: 14
+    pages: "589-600"
+    year: 2016
+    doi: "10.1038/nrmicro.2016.84"
+  - type: book
+    title: "Blueprint for Harmony: Thermodynamic Foundations of Cooperation and Conscious Evolution"
+    authors:
+      - family-names: "Evans"
+        given-names: "Laurence W."
+    publisher: "Cooperation Press"
+    year: 2026
+    isbn: "978-969-8992-10-1"
+  - type: book
+    title: "Nature's Holism"
+    authors:
+      - family-names: "Evans"
+        given-names: "Laurence W."
+    publisher: "iUniverse"
+    year: 1999
+  - type: dataset
+    title: "MELV Agent-Based Model V2.1"
+    authors:
+      - family-names: "Evans"
+        given-names: "Laurence W."
+    doi: "10.5281/zenodo.19422174"
+    year: 2026
+    publisher: "Zenodo"
