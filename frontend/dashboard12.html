@@ -1014,7 +1014,7 @@ Version: MELVcore v2.9.0 | Session 33 | May 2026
 
   <div class="sidebar-foot">
     MELVcore v2.9.0<br>
-    Sessions 1–30b complete<br>
+    Sessions 33 complete<br>
     Blueprint for Harmony<br>
     © Ecotao Enterprises<br>
     L.W. Evans
@@ -5746,7 +5746,7 @@ async function runObserveValidate() {
     const n = parseInt(document.getElementById('obs-n-history').value) || 15;
     const resp = await fetch(`${API}/api/observe/schema-validate`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeader() },
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify(_buildObservePayload(n)),
     });
     const d = await resp.json();
@@ -5769,7 +5769,7 @@ async function runObserveCompute() {
     const n = parseInt(document.getElementById('obs-n-history').value) || 15;
     const resp = await fetch(`${API}/api/observe/`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeader() },
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify(_buildObservePayload(n)),
     });
     const d = await resp.json();
