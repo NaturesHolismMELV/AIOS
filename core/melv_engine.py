@@ -1744,3 +1744,128 @@ class MELVKernel:
             "badge_counts":                 badge_counts,
             "dominant_bottleneck":          dominant,
         }
+
+    # ── SESSION 33 — observe() GOVERNANCE LOOP EXTENSION ──────────────────
+
+    def apply_observation(self, observation_result) -> dict:
+        """
+        Apply an ObservationResult to the MELVKernel governance loop.
+
+        Session 33 (v2.9.0): Integrates the observe() primitive output
+        into the running kernel — updating agent φ, provisioning β from
+        ResourcePolicy signals, recording the CI snapshot, and emitting
+        governance events where warranted.
+
+        This is the bridge between the observe() pipeline (external signals)
+        and the MELVKernel governance loop (cooperative equilibrium tracking).
+
+        Parameters
+        ----------
+        observation_result : ObservationResult
+            Output of ObservationComputer.compute(). Must have agent_id
+            matching a registered kernel agent (or a new agent is auto-
+            registered at φ=0.5 as MATURING).
+
+        Returns
+        -------
+        dict with keys:
+          agent_updated    — True if kernel agent state was modified
+          phi_applied      — new kernel φ value for the agent
+          beta_provisioned — True if β was provisioned from observe result
+          ci_snapshot      — CI value recorded (or None)
+          governance_events — list of event descriptions emitted
+          warnings          — list of non-fatal issues
+        """
+        from core.observe_schema import ObservationResult  # local import — avoid circular
+
+        result = observation_result
+        agent_id = result.agent_id
+        events: list[str] = []
+        warnings: list[str] = []
+
+        # ── 1. Ensure agent is registered ─────────────────────────────────
+        if agent_id not in self.agents:
+            profile = AgentProfile(
+                agent_id=agent_id,
+                name=agent_id.upper(),
+                domain="observed",
+                phi=result.phi.value if result.phi.computable else 0.5,
+                epsilon=result.epsilon.effective,
+                status=AgentStatus.MATURING,
+            )
+            self.register_agent(profile)
+            events.append(f"AUTO_REGISTERED: {agent_id} (from observe() signal)")
+        else:
+            agent = self.agents[agent_id]
+
+        agent = self.agents[agent_id]
+
+        # ── 2. Update φ if computed and status ②+ ──────────────────────────
+        phi_applied = agent.phi
+        if result.phi.computable and result.phi.status >= 2:
+            # Drive kernel φ toward the observed value
+            # Blend: kernel φ relaxes 20% per observe() call toward observed
+            tau_observe = 0.2
+            new_phi = agent.phi + tau_observe * (result.phi.value - agent.phi)
+            new_phi = max(0.0, min(1.0, round(new_phi, 4)))
+            agent.phi = new_phi
+            phi_applied = new_phi
+            events.append(
+                f"PHI_UPDATED: {agent_id} φ {result.phi.value:.4f} → "
+                f"kernel φ {new_phi:.4f}"
+            )
+
+            # Status promotion
+            if agent.phi >= 0.75 and agent.status == AgentStatus.MATURING:
+                agent.status = AgentStatus.ACTIVE
+                events.append(f"STATUS_PROMOTED: {agent_id} MATURING → ACTIVE")
+
+        # ── 3. Provision β from observe() β result if status ③ ────────────
+        beta_provisioned = False
+        if result.beta.computable and result.beta.status >= 3:
+            # Map ObservationResult β → kernel BetaEnvironment resource
+            # Use "compute" as the primary resource (most general)
+            beta_val = result.beta.value
+            if 0.1 <= beta_val <= 3.0:
+                self.beta.set("compute", round(beta_val, 4))
+                beta_provisioned = True
+                events.append(
+                    f"BETA_PROVISIONED: compute β={beta_val:.4f} "
+                    f"(from observe() β status ③)"
+                )
+
+        # ── 4. Update agent ε from observe() ε_effective ──────────────────
+        eps_eff = result.epsilon.effective
+        if eps_eff != agent.epsilon:
+            old_eps = agent.epsilon
+            agent.epsilon = round(eps_eff, 4)
+            events.append(
+                f"EPSILON_UPDATED: {agent_id} ε {old_eps:.4f} → {eps_eff:.4f}"
+            )
+
+        # ── 5. Record CI snapshot ──────────────────────────────────────────
+        ci_snapshot = result.ci
+        if ci_snapshot is not None:
+            self._record_ci_snapshot()
+            events.append(f"CI_SNAPSHOT: {ci_snapshot:.4f}")
+
+        # ── 6. φ/σ divergence governance event ────────────────────────────
+        if (result.phi_sigma_divergence is not None and
+                result.phi_sigma_divergence > 0.2):
+            events.append(
+                f"DOMAIN_SHIFT_SIGNAL: φ/σ divergence = "
+                f"{result.phi_sigma_divergence:.3f} for {agent_id}"
+            )
+
+        # ── 7. Persist agent if changed ────────────────────────────────────
+        if self._persistence:
+            self._persistence.save_agent(agent)
+
+        return {
+            "agent_updated":     True,
+            "phi_applied":       phi_applied,
+            "beta_provisioned":  beta_provisioned,
+            "ci_snapshot":       ci_snapshot,
+            "governance_events": events,
+            "warnings":          warnings,
+        }

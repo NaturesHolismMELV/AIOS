@@ -600,3 +600,162 @@ def melv_node(agent_id: str, domain: str, kernel,
             resource_type=resource_type,
         )
     return decorator
+
+
+# ── SESSION 33 — OBSERVATION PAYLOAD BUILDER ─────────────────────────────
+# Extends MELVNode with observe() primitive signal collection.
+
+class LangGraphObservationBuilder:
+    """
+    Accumulates LangGraph node signals and builds an ObservationPayload.
+    Session 33 · v2.9.0
+
+    LangGraph signal mapping (MAIES-006 ④ convergence):
+    ────────────────────────────────────────────────────
+      φ/σ: node output → next node without retry edge = downstream_accepted=True
+           error/retry count per node = reconfiguration events
+      β:   token usage per node vs. configured limits via callbacks
+           rate-limit errors = ContentionEvent(origin='infra')
+      ε:   latency per node via checkpoint timestamps
+           state delta size as complexity proxy
+
+    task_domain: inject as a required field in LangGraph state schema.
+
+    Usage
+    -----
+        builder = LangGraphObservationBuilder(
+            agent_id="lg-retriever",
+            task_domain="retrieval",
+            resource_policy=ResourcePolicy(token_budget_per_hour=10000),
+        )
+
+        # After each node invocation:
+        builder.record_node_invocation(
+            task_id="run-001",
+            node_name="retriever",
+            success=True,
+            retry_count=0,
+            duration_seconds=1.2,
+            downstream_accepted=True,
+            latency_ms=1200.0,
+        )
+
+        payload = builder.build()
+    """
+
+    def __init__(
+        self,
+        agent_id: str,
+        task_domain: str,
+        resource_policy=None,
+        tool_topology=None,
+        phi_window: int = 200,
+        sigma_window: int = 20,
+        state_reliability=None,
+    ):
+        from core.observe_schema import (
+            ResourcePolicy as RP,
+            ToolTopology as TT,
+            PHI_WINDOW_DEFAULT,
+            SIGMA_WINDOW_DEFAULT,
+        )
+        self.agent_id        = agent_id
+        self.task_domain     = task_domain
+        self.resource_policy = resource_policy or RP()
+        self.tool_topology   = tool_topology or TT()
+        self.phi_window      = phi_window
+        self.sigma_window    = sigma_window
+        self.state_reliability = state_reliability
+
+        self._history:    list = []
+        self._contention: list = []
+        self._reconfigs:  list = []
+        self._latencies:  list = []
+        self._current_task_duration: float = 0.0
+
+    def record_node_invocation(
+        self,
+        task_id: str,
+        node_name: str,
+        success: bool,
+        retry_count: int = 0,
+        duration_seconds: float = 0.0,
+        downstream_accepted=None,
+        latency_ms: float = 0.0,
+        task_type: str = "node",
+    ) -> None:
+        """Record one LangGraph node invocation."""
+        from datetime import datetime as _dt
+        from core.observe_schema import (
+            TaskOutcome, ReconfigEvent, LatencySample,
+        )
+        now = _dt.utcnow()
+
+        outcome = TaskOutcome(
+            task_id=f"{task_id}:{node_name}",
+            task_domain=self.task_domain,
+            success=success,
+            reconfiguration_count=retry_count,
+            duration_seconds=duration_seconds,
+            downstream_accepted=downstream_accepted,
+        )
+        self._history.append(outcome)
+        self._current_task_duration += duration_seconds
+
+        for _ in range(retry_count):
+            self._reconfigs.append(ReconfigEvent(
+                event_type="branching",
+                tool_switched=False,
+                timestamp=now,
+                task_id=task_id,
+            ))
+
+        if latency_ms > 0:
+            self._latencies.append(LatencySample(
+                task_domain=self.task_domain,
+                task_type=task_type or node_name,
+                latency_ms=latency_ms,
+                timestamp=now,
+            ))
+
+    def record_rate_limit(self, resource_type: str = "tokens", delay_ms: float = 0.0):
+        """Record an infra rate-limit event."""
+        from datetime import datetime as _dt
+        from core.observe_schema import ContentionEvent
+        self._contention.append(ContentionEvent(
+            resource_type=resource_type,
+            origin="infra",
+            timestamp=_dt.utcnow(),
+            delay_ms=delay_ms,
+        ))
+
+    def build(self, task_duration_seconds=None):
+        """Build ObservationPayload from accumulated signals."""
+        from core.observe_schema import ObservationPayload
+        phi_history = [
+            t for t in self._history
+            if t.task_domain == self.task_domain
+        ][-self.phi_window:]
+        sigma_recent = self._history[-self.sigma_window:]
+        duration = task_duration_seconds or self._current_task_duration
+
+        return ObservationPayload(
+            agent_id=self.agent_id,
+            framework="langgraph",
+            task_domain=self.task_domain,
+            domain_success_history=phi_history,
+            recent_task_outcomes=sigma_recent,
+            resource_policy=self.resource_policy,
+            contention_events=list(self._contention),
+            reconfiguration_events=list(self._reconfigs),
+            latency_samples=list(self._latencies),
+            tool_topology=self.tool_topology,
+            task_duration_seconds=duration,
+            state_reliability=self.state_reliability,
+        )
+
+    def reset_session(self):
+        self._reconfigs.clear()
+        self._latencies.clear()
+        self._contention.clear()
+        self._current_task_duration = 0.0

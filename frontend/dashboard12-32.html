@@ -225,7 +225,7 @@ API KEY:  X-API-Key header required for write endpoints.
 KEY ENDPOINTS:
 
 GET  /health
-     Returns: {"status":"ok","version":"2.9.0"}
+     Returns: {"status":"ok","version":"2.6.0"}
 
 GET  /demo/ci           (public — use during demo for CI polling)
 GET  /api/cooperation_index
@@ -415,7 +415,7 @@ A: Namibia, 1981-1983. L.W. Evans was on military service and observed a
 ================================================================================
 END CLAUDE_SKILL
 Author:  Laurence W. Evans | ORCID: 0009-0001-0963-1840
-Version: MELVcore v2.9.0 | Session 33 | May 2026
+Version: MELVcore v2.6.0 | Session 30 | April 2026
 ================================================================================
 -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -926,7 +926,7 @@ Version: MELVcore v2.9.0 | Session 33 | May 2026
     </div>
     <div>
       <div class="logo-name">AIOS</div>
-      <div class="logo-sub">Harmony Dashboard · MELVcore v2.9.0 · Session 33</div>
+      <div class="logo-sub">Harmony Dashboard · MELVcore v2.6.0 · Session 30</div>
     </div>
   </div>
 
@@ -985,7 +985,6 @@ Version: MELVcore v2.9.0 | Session 33 | May 2026
   <div class="nav-item" data-target="sec-epsilon-decomp" style="margin-top:4px"><div class="nav-dot" style="background:#f59e0b"></div>ε Decomposition <span style="font-family:'Space Mono',monospace;font-size:12px;color:#f59e0b;margin-left:auto">S26</span></div>
   <div class="nav-item" data-target="sec-oxpecker" style="margin-top:4px"><div class="nav-dot" style="background:#4ade80"></div>Oxpecker Activity <span style="font-family:'Space Mono',monospace;font-size:12px;color:#4ade80;margin-left:auto">S27</span></div>
   <div class="nav-item" data-target="sec-quorum-reliability" style="margin-top:4px"><div class="nav-dot" style="background:#c084fc"></div>Quorum Reliability <span style="font-family:'Space Mono',monospace;font-size:12px;color:#c084fc;margin-left:auto">S28</span></div>
-  <div class="nav-item" data-target="sec-observe" style="margin-top:4px"><div class="nav-dot" style="background:#38bdf8"></div>observe() Primitive <span style="font-family:'Space Mono',monospace;font-size:12px;color:#38bdf8;margin-left:auto">S32/33</span></div>
   <div class="nav-item" data-target="sec-epsilon-arch" style="margin-top:4px"><div class="nav-dot" style="background:#fb923c"></div>ε Architectural <span style="font-family:'Space Mono',monospace;font-size:12px;color:#fb923c;margin-left:auto">S29</span></div>
   <div class="nav-item" data-target="sec-persistence" style="margin-top:4px"><div class="nav-dot" style="background:#f59e0b"></div>Persistence <span style="font-family:'Space Mono',monospace;font-size:12px;color:#f59e0b;margin-left:auto">S12</span></div>
   <div class="nav-item" data-target="sec-gateway" style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px"><div class="nav-dot" style="background:#a78bfa"></div>Gateway API</div>
@@ -1013,7 +1012,7 @@ Version: MELVcore v2.9.0 | Session 33 | May 2026
   </div>
 
   <div class="sidebar-foot">
-    MELVcore v2.9.0<br>
+    MELVcore v2.6.0<br>
     Sessions 1–30b complete<br>
     Blueprint for Harmony<br>
     © Ecotao Enterprises<br>
@@ -3345,144 +3344,6 @@ Version: MELVcore v2.9.0 | Session 33 | May 2026
 </section>
 
 
-<section id="sec-observe" class="panel" style="display:none">
-  <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
-    <span style="font-size:18px;font-weight:700">observe() Primitive</span>
-    <span style="font-family:'Space Mono',monospace;font-size:12px;color:#38bdf8;background:rgba(56,189,248,.12);padding:2px 8px;border-radius:3px">S32/33</span>
-  </div>
-  <div style="font-size:13px;color:var(--text-dim);margin-bottom:18px;line-height:1.6">
-    <strong style="color:var(--text)">Multi-layer inference system translating real-world agent signals into φ, σ, β, and ε.</strong><br>
-    MAIES-006 primary finding (③+): ε is directly observable · φ is conditionally derivable · β is a latent variable requiring ResourcePolicy reconstruction.<br>
-    σ is provisional ① pending MAIES-007. CI gated on φ ③+, β ③+, ε_intrinsic ②+, ε_ecosystem ②+.
-  </div>
-
-  <!-- Signal Provenance -->
-  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:18px" id="obs-cards">
-    <div class="card" style="padding:14px 16px">
-      <div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">φ (phi)</div>
-      <div style="font-size:28px;font-weight:700;font-family:'Space Mono',monospace;color:var(--coop)" id="obs-phi-val">—</div>
-      <div style="font-size:11px;color:var(--text-dim);margin-top:4px">status <span id="obs-phi-status">①</span></div>
-      <div style="font-size:11px;color:var(--text-dim)" id="obs-phi-ci"></div>
-    </div>
-    <div class="card" style="padding:14px 16px">
-      <div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">σ (sigma) ①</div>
-      <div style="font-size:28px;font-weight:700;font-family:'Space Mono',monospace;color:#94a3b8" id="obs-sigma-val">—</div>
-      <div style="font-size:11px;color:#94a3b8;margin-top:4px">provisional · MAIES-007 pending</div>
-    </div>
-    <div class="card" style="padding:14px 16px">
-      <div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">β (beta)</div>
-      <div style="font-size:28px;font-weight:700;font-family:'Space Mono',monospace;color:#f59e0b" id="obs-beta-val">—</div>
-      <div style="font-size:11px;color:var(--text-dim);margin-top:4px">status <span id="obs-beta-status">①</span></div>
-    </div>
-    <div class="card" style="padding:14px 16px">
-      <div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">ε_effective</div>
-      <div style="font-size:28px;font-weight:700;font-family:'Space Mono',monospace;color:#fb923c" id="obs-eps-val">—</div>
-      <div style="font-size:11px;color:var(--text-dim);margin-top:4px">intr + eco</div>
-    </div>
-    <div class="card" style="padding:14px 16px">
-      <div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">CI (observe)</div>
-      <div style="font-size:28px;font-weight:700;font-family:'Space Mono',monospace" id="obs-ci-val" style="color:var(--text-dim)">—</div>
-      <div style="font-size:11px;color:var(--text-dim);margin-top:4px" id="obs-ci-gate">gate not met</div>
-    </div>
-    <div class="card" style="padding:14px 16px">
-      <div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">φ/σ Divergence</div>
-      <div style="font-size:28px;font-weight:700;font-family:'Space Mono',monospace;color:#e879f9" id="obs-div-val">—</div>
-      <div style="font-size:11px;color:var(--text-dim);margin-top:4px" id="obs-div-label">domain shift signal</div>
-    </div>
-  </div>
-
-  <!-- Schema Validate Form -->
-  <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px;margin-top:8px">
-    Schema Validate · <code style="font-size:12px;color:#38bdf8">POST /api/observe/schema-validate</code>
-  </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px">
-    <div>
-      <label style="font-size:11px;color:var(--text-dim);display:block;margin-bottom:4px">Agent ID</label>
-      <input id="obs-agent-id" type="text" value="agent-demo-001"
-             style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);
-                    border-radius:4px;padding:6px 8px;font-size:12px;font-family:'Space Mono',monospace"/>
-    </div>
-    <div>
-      <label style="font-size:11px;color:var(--text-dim);display:block;margin-bottom:4px">Framework</label>
-      <select id="obs-framework"
-              style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);
-                     border-radius:4px;padding:6px 8px;font-size:12px">
-        <option value="langgraph">LangGraph</option>
-        <option value="autogen">AutoGen</option>
-        <option value="crewai">CrewAI</option>
-        <option value="agentforce">Agentforce</option>
-        <option value="copilot_studio">Copilot Studio</option>
-        <option value="vertex_ai">Vertex AI</option>
-        <option value="servicenow">ServiceNow</option>
-        <option value="other">Other</option>
-      </select>
-    </div>
-    <div>
-      <label style="font-size:11px;color:var(--text-dim);display:block;margin-bottom:4px">Task Domain</label>
-      <input id="obs-domain" type="text" value="nlp"
-             style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);
-                    border-radius:4px;padding:6px 8px;font-size:12px;font-family:'Space Mono',monospace"/>
-    </div>
-  </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-    <div>
-      <label style="font-size:11px;color:var(--text-dim);display:block;margin-bottom:4px">History records (φ window)</label>
-      <input id="obs-n-history" type="number" value="15" min="0" max="200"
-             style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);
-                    border-radius:4px;padding:6px 8px;font-size:12px"/>
-    </div>
-    <div>
-      <label style="font-size:11px;color:var(--text-dim);display:block;margin-bottom:4px">State reliability (0–1, blank = None)</label>
-      <input id="obs-reliability" type="number" value="" min="0" max="1" step="0.1" placeholder="None"
-             style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);
-                    border-radius:4px;padding:6px 8px;font-size:12px"/>
-    </div>
-  </div>
-  <div style="margin-bottom:12px">
-    <label style="font-size:11px;color:var(--text-dim);display:block;margin-bottom:4px">ResourcePolicy action_scope (blank = omit)</label>
-    <input id="obs-action-scope" type="text" placeholder="e.g. jira:read,comment;confluence:read"
-           style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);
-                  border-radius:4px;padding:6px 8px;font-size:12px;font-family:'Space Mono',monospace"/>
-  </div>
-  <div style="display:flex;gap:10px;margin-bottom:14px">
-    <button id="obs-validate-btn" onclick="runObserveValidate()"
-            style="background:rgba(56,189,248,.18);color:#38bdf8;border:1px solid #38bdf8;
-                   border-radius:5px;padding:8px 20px;font-size:13px;cursor:pointer">
-      Validate Schema
-    </button>
-    <button id="obs-compute-btn" onclick="runObserveCompute()"
-            style="background:rgba(56,189,248,.10);color:#38bdf8;border:1px solid rgba(56,189,248,.4);
-                   border-radius:5px;padding:8px 20px;font-size:13px;cursor:pointer">
-      Full observe()
-    </button>
-  </div>
-
-  <!-- Results -->
-  <div id="obs-result-area" style="display:none">
-    <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:8px">Boundary Guard Results</div>
-    <div id="obs-boundary-list" style="font-size:12px;font-family:'Space Mono',monospace;
-         background:var(--surface2);border-radius:6px;padding:12px;margin-bottom:14px;line-height:1.8"></div>
-    <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:8px">Field Epistemic Status</div>
-    <div id="obs-status-list" style="font-size:12px;font-family:'Space Mono',monospace;
-         background:var(--surface2);border-radius:6px;padding:12px;margin-bottom:14px;line-height:1.8"></div>
-    <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:8px">Warnings</div>
-    <div id="obs-warnings-list" style="font-size:12px;color:#fbbf24;
-         background:var(--surface2);border-radius:6px;padding:12px;line-height:1.8"></div>
-  </div>
-
-  <!-- Variable definitions -->
-  <div style="font-size:12px;color:var(--text-dim);margin-top:24px;line-height:1.8;border-top:1px solid var(--border);padding-top:14px">
-    <strong style="color:var(--text)">Variable measurability classes (MAIES-006 ③+)</strong><br>
-    <strong style="color:#38bdf8">ε</strong> — directly observable from behavioural traces (branching reconfigs / duration) ·
-    <strong style="color:var(--coop)">φ</strong> — conditionally derivable; requires domain-conditioned history ·
-    <strong style="color:#f59e0b">β</strong> — latent; requires ResourcePolicy reconstruction (never from agent traces)<br>
-    <strong style="color:#94a3b8">σ</strong> — provisional ① niche matching; MAIES-007 required for proxy validation ·
-    action_scope = enterprise permission-as-β (v2.8.1) · state_reliability = UX→data quality weight (v2.8.1)
-  </div>
-</section>
-
-
-
 </main>
 </div>
 
@@ -5684,178 +5545,6 @@ async function updateOxpecker() {
     panelError('oxp-pending', 'oxpecker_status unavailable: ' + e.message);
   }
 }
-
-// ── SESSION 33: observe() PANEL ──────────────────────────────────────────
-
-function _buildObservePayload(nHistory) {
-  const agentId  = document.getElementById('obs-agent-id').value.trim() || 'agent-demo-001';
-  const framework = document.getElementById('obs-framework').value;
-  const domain   = document.getElementById('obs-domain').value.trim() || 'nlp';
-  const relRaw   = document.getElementById('obs-reliability').value.trim();
-  const reliability = relRaw === '' ? null : parseFloat(relRaw);
-  const actionScope = document.getElementById('obs-action-scope').value.trim() || null;
-
-  // Generate synthetic history
-  const history = [];
-  for (let i = 0; i < nHistory; i++) {
-    history.push({
-      task_id: `task-${i}`,
-      task_domain: domain,
-      success: (i % 5 !== 0),
-      reconfiguration_count: (i % 3 === 0) ? 1 : 0,
-      duration_seconds: 8.0 + (i % 3),
-      downstream_accepted: (i % 4 !== 0),
-    });
-  }
-
-  const policy = {};
-  if (actionScope) policy.action_scope = actionScope;
-  policy.token_budget_per_hour = 10000.0;
-  policy.compute_share = 0.5;
-
-  const payload = {
-    agent_id: agentId,
-    framework,
-    task_domain: domain,
-    domain_success_history: history,
-    recent_task_outcomes: history.slice(-5),
-    resource_policy: policy,
-    contention_events: [],
-    reconfiguration_events: history.filter((_,i) => i%3===0).map((t,j) => ({
-      event_type: 'branching', tool_switched: false,
-      timestamp: new Date().toISOString(), task_id: t.task_id,
-    })),
-    latency_samples: ['summarise','classify'].flatMap(tt =>
-      [200, 350, 150].map(ms => ({
-        task_domain: domain, task_type: tt, latency_ms: ms,
-        timestamp: new Date().toISOString(),
-      }))
-    ),
-    tool_topology: { agent_native:1, fast_rest:2, standard:3, human_bottlenecked:0, legacy:0 },
-    task_duration_seconds: 10.0,
-  };
-  if (reliability !== null) payload.state_reliability = reliability;
-  return payload;
-}
-
-async function runObserveValidate() {
-  const btn = document.getElementById('obs-validate-btn');
-  btn.disabled = true;
-  btn.textContent = 'Validating…';
-  try {
-    const n = parseInt(document.getElementById('obs-n-history').value) || 15;
-    const resp = await fetch(`${API}/api/observe/schema-validate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeader() },
-      body: JSON.stringify(_buildObservePayload(n)),
-    });
-    const d = await resp.json();
-    _renderObserveValidation(d);
-    document.getElementById('obs-result-area').style.display = 'block';
-  } catch(e) {
-    document.getElementById('obs-boundary-list').textContent = `Error: ${e.message}`;
-    document.getElementById('obs-result-area').style.display = 'block';
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Validate Schema';
-  }
-}
-
-async function runObserveCompute() {
-  const btn = document.getElementById('obs-compute-btn');
-  btn.disabled = true;
-  btn.textContent = 'Computing…';
-  try {
-    const n = parseInt(document.getElementById('obs-n-history').value) || 15;
-    const resp = await fetch(`${API}/api/observe/`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeader() },
-      body: JSON.stringify(_buildObservePayload(n)),
-    });
-    const d = await resp.json();
-    _renderObserveResult(d);
-    document.getElementById('obs-result-area').style.display = 'block';
-  } catch(e) {
-    document.getElementById('obs-boundary-list').textContent = `Error: ${e.message}`;
-    document.getElementById('obs-result-area').style.display = 'block';
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Full observe()';
-  }
-}
-
-function _epistemicBadge(status) {
-  const colours = { 1: '#94a3b8', 2: '#fbbf24', 3: '#4ade80', 4: '#38bdf8' };
-  const c = colours[status] || '#94a3b8';
-  return `<span style="color:${c};font-weight:700">①②③④`[0 + (status-1)] + `</span> status ${status}`;
-}
-
-function _renderObserveValidation(d) {
-  const bl = document.getElementById('obs-boundary-list');
-  bl.innerHTML = (d.boundary_checks || []).map(bc => {
-    const icon = bc.passed ? '✓' : '✗';
-    const col  = bc.passed ? 'var(--coop)' : 'var(--conflict)';
-    return `<span style="color:${col}">${icon} ${bc.guard}</span>` +
-           (bc.passed ? '' : ` — ${bc.violation_type}: ${bc.detail}`);
-  }).join('<br>');
-
-  const sl = document.getElementById('obs-status-list');
-  sl.innerHTML = (d.field_statuses || []).map(fs => {
-    const colours = { 1:'#94a3b8', 2:'#fbbf24', 3:'#4ade80', 4:'#38bdf8' };
-    const c = colours[fs.status] || '#94a3b8';
-    return `<span style="color:${c}">●</span> <strong style="color:var(--text)">${fs.variable}</strong> ` +
-           `status ${fs.status} · ${fs.reason}`;
-  }).join('<br>');
-
-  document.getElementById('obs-warnings-list').innerHTML =
-    (d.warnings || []).slice(0, 8).join('<br>') || '(none)';
-}
-
-function _renderObserveResult(d) {
-  _renderObserveValidation({
-    boundary_checks: [],
-    field_statuses: [
-      {variable:'phi',   status:d.phi?.status,   reason:d.phi?.warnings?.[0] || ''},
-      {variable:'sigma', status:d.sigma?.status,  reason:'provisional ① · MAIES-007 pending'},
-      {variable:'beta',  status:d.beta?.status,   reason:d.beta?.warnings?.[0] || ''},
-    ],
-    warnings: d.warnings,
-  });
-
-  const phi = d.phi?.value;
-  const sigma = d.sigma?.value;
-  const beta = d.beta?.value;
-  const epsEff = d.epsilon?.effective;
-  const ci = d.ci;
-  const div = d.phi_sigma_divergence;
-
-  const ciCol = ci === null ? 'var(--text-dim)'
-    : ci >= 0.75 ? 'var(--coop)' : ci >= 0.5 ? '#fbbf24' : 'var(--conflict)';
-
-  document.getElementById('obs-phi-val').textContent = phi !== undefined ? phi.toFixed(3) : '—';
-  document.getElementById('obs-phi-status').textContent = d.phi?.status ?? '①';
-  const ci_info = d.phi?.confidence_interval;
-  document.getElementById('obs-phi-ci').textContent =
-    ci_info ? `CI [${ci_info[0].toFixed(3)}, ${ci_info[1].toFixed(3)}]` : '';
-
-  document.getElementById('obs-sigma-val').textContent = sigma !== undefined ? sigma.toFixed(3) : '—';
-  document.getElementById('obs-beta-val').textContent = beta !== undefined ? beta.toFixed(3) : '—';
-  document.getElementById('obs-beta-status').textContent = d.beta?.status ?? '①';
-  document.getElementById('obs-eps-val').textContent = epsEff !== undefined ? epsEff.toFixed(3) : '—';
-
-  const ciEl = document.getElementById('obs-ci-val');
-  ciEl.textContent = ci !== null && ci !== undefined ? ci.toFixed(4) : '—';
-  ciEl.style.color = ciCol;
-  document.getElementById('obs-ci-gate').textContent =
-    ci !== null && ci !== undefined ? (ci >= 0.75 ? '▲ cooperative' : '▼ below target') : 'gate not met';
-
-  const divEl = document.getElementById('obs-div-val');
-  divEl.textContent = div !== null && div !== undefined ? div.toFixed(3) : '—';
-  divEl.style.color = (div > 0.2) ? 'var(--conflict)' : '#e879f9';
-  document.getElementById('obs-div-label').textContent =
-    (div > 0.2) ? '⚠ domain shift signal' : 'φ/σ divergence';
-}
-
 
 </script>
 </body>
