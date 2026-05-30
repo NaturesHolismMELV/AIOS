@@ -684,3 +684,8 @@ class ObservationResult:
     phi_sigma_divergence: Optional[float] = None
     warnings: list[str] = field(default_factory=list)
     timestamp: datetime = field(default_factory=datetime.utcnow)
+    # Session 35 — Equation 7 φ dynamics inputs
+    # r_value: β proxy for gateway ratio R = C/B (β ≥ 1 → competitive, β < 1 → cooperative)
+    # d_value: disruption intensity D(t) ≥ 0; 0.0 default until three-layer logging (Session 36)
+    r_value: Optional[float] = None    # R proxy for Eq.7 H gates; None if β not computable
+    d_value: float = 0.0               # D(t) disruption intensity; always 0.0 until Session 36

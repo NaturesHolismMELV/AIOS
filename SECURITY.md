@@ -55,7 +55,7 @@ Before sharing the public demo URL widely:
 If you discover a security vulnerability in this project, please report
 it privately by emailing:
 
-**laurence@ecotao.co.za**
+**laurence@naturesholismmelv.com**
 
 Please include:
 - Description of the vulnerability

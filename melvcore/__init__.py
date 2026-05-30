@@ -54,7 +54,7 @@ Book      : Blueprint for Harmony, Cooperation Press 2026
 
 __version__ = "2.5.0"
 __author__    = "L.W. Evans | ORCID: 0009-0001-0963-1840"
-__email__     = "web@ecotao.com"
+__email__     = "laurence@naturesholismmelv.com"
 __license__   = "Apache-2.0"
 __orcid__     = "0009-0001-0963-1840"
 __doi__       = "10.5281/zenodo.17680563"

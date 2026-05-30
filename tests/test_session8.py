@@ -117,7 +117,7 @@ def test_pyproject_toml_required_fields():
         'melvcore',
         '1.0.0',
         'L.W. Evans',
-        'web@ecotao.com',
+        'laurence@naturesholismmelv.com',
         '3.11',
         'fastapi',
         'pydantic',

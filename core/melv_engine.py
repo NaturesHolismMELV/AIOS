@@ -203,6 +203,65 @@ STC_SUPPORT_REDUCTION        = 0.5   # maximum STC reduction when fully supporte
 # Mismatch fraction threshold for dominant_bottleneck = "mismatch"
 MISMATCH_DOMINANT_THRESHOLD  = 0.25  # >25% agents mismatched → ecosystem bottleneck is mismatch
 
+# ── β_norm CORRECTION (Session 35 — v3.1.0) ──────────────────────────────
+# MAIES Form C correction C1. Canonical reference v1.2.
+#
+# The cooperation-evolution equation uses β_norm = β/(1+β) ∈ (0,1),
+# not raw β ∈ [0.1, 3.0]. Raw β is retained for:
+#   - Gateway condition R = C/B (unchanged)
+#   - Quorum gate φ·β (unchanged — ABM V2.1 calibrated on raw β)
+#   - BetaEnvironment provisioning (unchanged)
+#
+# Only the master equation term uses β_norm.
+#
+# Epistemic status: ③ canonical correction (MAIES Form C, nine-system
+# convergence, canonical document v1.2, Session 35).
+
+def _beta_norm(beta_raw: float) -> float:
+    """
+    β_norm = β/(1+β) ∈ (0,1).
+
+    Maps raw β from [0.1, 3.0] to (0,1):
+      β=0.1 → β_norm≈0.091
+      β=0.5 → β_norm≈0.333
+      β=1.0 → β_norm=0.500
+      β=2.0 → β_norm≈0.667
+      β=3.0 → β_norm=0.750
+
+    Used ONLY in the master equation i(t) = i₀ × (1 − ε × φ(t) × β_norm(t)).
+    NOT used in quorum gate, gateway condition, or β provisioning.
+
+    MAIES Form C correction C1. Canonical reference v1.2 Part II.
+    Session 35 (v3.1.0). Epistemic status: ③.
+    """
+    return beta_raw / (1.0 + beta_raw)
+
+
+# Computational floor for i(t) — guard against unbounded negative values
+# for high-ε agents pending full tanh saturation form (Session 36 scope).
+I_FLOOR = -5.0   # i(t) clamped to [I_FLOOR, 1.0] — ② theoretical
+
+# ── EQUATION 7 φ DYNAMICS CONSTANTS (Session 35 — v3.1.0) ────────────────
+# Canonical reference v1.2 Part IV Equation 7.
+#
+# dφ/dt = α × (1−φ) × H(0.50 − R(t)) × max(0, 1−i(t))
+#         − δ × D(t) × φ × H(R(t) − 0.50)
+#
+# Compound gating rule:
+#   φ BUILDS only when H(0.50 − R) = 1 AND max(0, 1−i) > 0
+#   i.e. R < 0.50 AND i < 1.0 simultaneously.
+#   If either condition fails, the build term is zero.
+#   This means the recovery clock freezes outside the eligible regime.
+#
+# α ≪ δ: φ decays faster than it builds (asymmetry confirmed ABM V2.1 T1.5).
+#
+# Epistemic status: ② theoretical (α and δ values). Calibration pending
+# empirical data (ABM Test Suite 1, Session 38).
+
+PHI_BUILD_RATE_ALPHA = 0.01   # α — φ build rate; calibrate from ABM T1.5
+PHI_DECAY_RATE_DELTA = 0.10   # δ — φ decay rate; δ ≫ α (10× asymmetry)
+PHI_GATEWAY_THRESHOLD = 0.50  # R threshold for Heaviside gates (canonical)
+
 
 @dataclass
 class EpsilonProfile:
@@ -1056,6 +1115,77 @@ class MELVKernel:
     def get_recent_events(self, n: int = 20) -> list[dict]:
         return [e.to_dict() for e in self.events[-n:]]
 
+
+    # ── EQUATION 7 φ DYNAMICS (Session 35 — v3.1.0) ──────────────────────
+
+    def _apply_phi_eq7(
+        self,
+        agent,
+        r_value: Optional[float],
+        i_value: Optional[float],
+        d_value: float = 0.0,
+    ) -> tuple[float, str]:
+        """
+        Apply Equation 7 φ dynamics increment to agent.phi.
+
+        Canonical reference: v1.2 Part IV Equation 7.
+
+        dφ/dt = α × (1−φ) × H(0.50 − R(t)) × max(0, 1−i(t))
+                − δ × D(t) × φ × H(R(t) − 0.50)
+
+        Compound gating rule (Session 35):
+          BUILD fires only when BOTH:
+            (1) R < PHI_GATEWAY_THRESHOLD  (H(0.50 − R) = 1)
+            (2) i < 1.0                    (max(0, 1−i) > 0)
+          DECAY fires when R ≥ PHI_GATEWAY_THRESHOLD.
+          If R is None (not yet computable), neither fires.
+
+        Parameters
+        ----------
+        agent       : AgentProfile — mutated in place
+        r_value     : float | None — current R = C/B ratio; None if unavailable
+        i_value     : float | None — current i(t) proxy (CI or None)
+        d_value     : float — disruption intensity D(t) ≥ 0
+
+        Returns
+        -------
+        (delta, event_string)
+          delta = net φ change applied (0.0 if gate not met)
+          event_string = description for governance log
+        """
+        if r_value is None:
+            return 0.0, ""
+
+        phi_old = agent.phi
+        delta   = 0.0
+
+        if r_value < PHI_GATEWAY_THRESHOLD:
+            # BUILD branch: H(0.50 − R) = 1
+            # Compound gate: also requires i < 1.0
+            if i_value is not None and i_value < 1.0:
+                build_factor = max(0.0, 1.0 - i_value)
+                delta = PHI_BUILD_RATE_ALPHA * (1.0 - phi_old) * build_factor
+            # If i_value is None or i_value ≥ 1.0: build term is zero
+        else:
+            # DECAY branch: H(R − 0.50) = 1
+            if d_value > 0.0:
+                delta = -(PHI_DECAY_RATE_DELTA * d_value * phi_old)
+
+        if delta == 0.0:
+            return 0.0, ""
+
+        new_phi = max(0.0, min(1.0, round(phi_old + delta, 4)))
+        agent.phi = new_phi
+
+        direction = "BUILD" if delta > 0 else "DECAY"
+        event = (
+            f"PHI_EQ7_{direction}: {agent.agent_id} "
+            f"φ {phi_old:.4f} → {new_phi:.4f} "
+            f"(R={r_value:.3f}, i={i_value if i_value is not None else 'N/A'}, "
+            f"D={d_value:.3f}, Δ={delta:+.4f})"
+        )
+        return delta, event
+
     # ── CI DYNAMICS (Session 9) ───────────────────────────────────────────
 
     def _record_ci_snapshot(self):
@@ -1819,6 +1949,19 @@ class MELVKernel:
             if agent.phi >= 0.75 and agent.status == AgentStatus.MATURING:
                 agent.status = AgentStatus.ACTIVE
                 events.append(f"STATUS_PROMOTED: {agent_id} MATURING → ACTIVE")
+
+            # ── 2b. Equation 7 φ dynamics (Session 35 — v3.1.0) ──────────
+            # Apply compound-gated build/decay on top of the blend update.
+            # Only fires when both gate conditions are met simultaneously.
+            eq7_delta, eq7_event = self._apply_phi_eq7(
+                agent=agent,
+                r_value=result.r_value,
+                i_value=result.ci,   # CI ≈ 1−ε×φ×β_norm; None if gate unmet
+                d_value=result.d_value,
+            )
+            if eq7_delta != 0.0:
+                phi_applied = agent.phi
+                events.append(eq7_event)
 
         # ── 3. Provision β from observe() β result if status ③ ────────────
         beta_provisioned = False

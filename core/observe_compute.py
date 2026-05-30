@@ -67,6 +67,7 @@ from core.observe_schema import (
     ScoredValue,
 )
 from core.observe_validator import ObservationValidator
+from core.melv_engine import _beta_norm, I_FLOOR  # Session 35 — β_norm correction
 
 # ── Constants ──────────────────────────────────────────────────────────────
 BETA_FLOOR   = 0.1
@@ -482,10 +483,11 @@ def _compute_ci(
     """
     Compute Cooperation Index if gate conditions are satisfied.
 
-    Master equation:
-      i₁₂(t) = i₁₂⁰ × (1 − ε × φ(t) × β(t))
+    Master equation (Session 35 — β_norm correction C1):
+      i₁₂(t) = i₁₂⁰ × (1 − ε × φ(t) × β_norm(t))
+      β_norm(t) = β(t)/(1+β(t)) ∈ (0,1)
     Simplified for single-agent observe():
-      CI = 1 − ε_effective × φ × β
+      CI = 1 − ε_effective × φ × β_norm
 
     Gate: φ ③+, β ③+, ε_intrinsic ②+, ε_ecosystem ②+
     σ (always ①) does NOT gate CI.
@@ -502,8 +504,11 @@ def _compute_ci(
     if epsilon.ecosystem.status < CI_GATE_EPS_ECO_MIN_STATUS:
         return None
 
-    ci_raw = 1.0 - (epsilon.effective * phi.value * beta.value)
-    return max(0.0, min(1.0, round(ci_raw, 4)))
+    # Session 35 (v3.1.0): β_norm correction C1 — use β/(1+β) ∈ (0,1)
+    # I_FLOOR guards against unbounded negative i(t) for high-ε agents
+    ci_raw     = 1.0 - (epsilon.effective * phi.value * _beta_norm(beta.value))
+    ci_floored = max(I_FLOOR, ci_raw)
+    return max(0.0, min(1.0, round(ci_floored, 4)))
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -583,6 +588,11 @@ class ObservationComputer:
                    epsilon.intrinsic, epsilon.ecosystem, epsilon.architectural]:
             all_warnings.extend(sv.warnings)
 
+        # Session 35 — Equation 7 inputs
+        # r_value: use raw β as R proxy. β ≥ 1 → competitive (R ≥ 0.50),
+        # β < 1 → cooperative (R < 0.50). None if β not computable.
+        r_value = beta.value if beta.computable else None
+
         return ObservationResult(
             agent_id=payload.agent_id,
             phi=phi,
@@ -593,4 +603,6 @@ class ObservationComputer:
             phi_sigma_divergence=phi_sigma_divergence,
             warnings=all_warnings,
             timestamp=datetime.utcnow(),
+            r_value=r_value,
+            d_value=0.0,   # D(t) = 0 until three-layer logging (Session 36)
         )
