@@ -34,7 +34,7 @@ to running code.
 Validation Stream 9: fragment value ∝ φ_a × φ_b.
 High-φ agent pairs produce richer context fragments.
 
-Blueprint for Harmony — L.W. Evans (Ecotao Enterprises, Cape Town)
+Blueprint for Harmony — L.W. Evans | ORCID: 0009-0001-0963-1840 | Cape Town, South Africa
 ORCID: 0009-0001-0963-1840
 """
 

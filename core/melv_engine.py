@@ -3,7 +3,7 @@ MELVcore Engine
 ===============
 Thermodynamic governance kernel for agent ecosystems.
 Based on the Modified Energetic Lotka-Volterra (MELV) framework.
-Blueprint for Harmony — L.W. Evans (Ecotao Enterprises, Cape Town)
+Blueprint for Harmony — L.W. Evans | ORCID: 0009-0001-0963-1840 | Cape Town, South Africa
 ORCID: 0009-0001-0963-1840
 
 Core principle: cooperation emerges thermodynamically when βi < 1.0

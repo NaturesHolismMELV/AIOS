@@ -16,8 +16,8 @@ authors:
     given-names: "Laurence W."
     orcid: "https://orcid.org/0009-0001-0963-1840"
     affiliation: "Independent Researcher, Cape Town, South Africa"
-version: "2.7.0"
-date-released: "2026-05-02"
+version: "3.0.0"
+date-released: "2026-05-29"
 license: "Apache-2.0"
 repository-code: "https://github.com/NaturesHolismMELV/AIOS"
 doi: "10.5281/zenodo.19665563"
@@ -69,3 +69,8 @@ references:
     doi: "10.5281/zenodo.19422174"
     year: 2026
     publisher: "Zenodo"
+
+identifiers:
+  - type: doi
+    value: "10.5281/zenodo.20011156"
+    description: "MELVcore preprint v3.0.0 (Sessions 1-34)"

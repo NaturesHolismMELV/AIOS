@@ -414,13 +414,13 @@ class InteractionPost(BaseModel):
 
 @app.get("/")
 async def root():
-    return {"system": "AIOS", "version": "2.5.0", "status": "operational",
+    return {"system": "AIOS", "version": "3.0.0", "status": "operational",
             "demo": "/demo", "docs": "/docs", "mcp": "/mcp", "mcp_sse": "/mcp/sse"}
 
 @app.get("/health")
 async def health_simple():
     """Simple health check for load balancers / Railway uptime monitor."""
-    return {"status": "ok", "version": "2.5.0"}
+    return {"status": "ok", "version": "3.0.0"}
 
 @app.get("/dashboard")
 async def dashboard_page():

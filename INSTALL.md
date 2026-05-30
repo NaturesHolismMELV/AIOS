@@ -2,7 +2,7 @@
 
 **Version:** v1.6.0 · Session 14  
 **Repository:** https://github.com/NaturesHolismMELV/AIOS  
-**Author:** L.W. Evans · Ecotao Enterprises, Cape Town  
+**Author:** L.W. Evans | ORCID: 0009-0001-0963-1840 | Cape Town, South Africa  
 **Zenodo DOI:** 10.5281/zenodo.17680563
 
 ---
@@ -160,5 +160,5 @@ The public demo URL will be: `https://YOUR-APP.railway.app/demo`
 
 ---
 
-*Ecotao Enterprises · L.W. Evans · Cape Town, South Africa*  
+*L.W. Evans | ORCID: 0009-0001-0963-1840 | Cape Town, South Africa*  
 *Blueprint for Harmony · Cooperation Press, 2026 · ISBN 978-969-8992-10-1*

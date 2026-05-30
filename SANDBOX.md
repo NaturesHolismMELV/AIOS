@@ -2,7 +2,7 @@
 
 **Phase 3 Platform · Session 9 Design Document**
 
-L.W. Evans · Ecotao Enterprises, Cape Town  
+L.W. Evans | ORCID: 0009-0001-0963-1840 | Cape Town, South Africa  
 ORCID: [0009-0001-0963-1840](https://orcid.org/0009-0001-0963-1840)  
 Blueprint for Harmony · Cooperation Press, 2026 · ISBN 978-969-8992-10-1
 
@@ -276,7 +276,7 @@ This language maps directly to the thermodynamic vocabulary of Chapter 12 of *Bl
 
 ### Wave 2 — Enterprise Tier
 
-- **$2,000/year per agent**: formal certification letter on Ecotao letterhead, Zenodo-anchored report hash, named for regulatory / due diligence use
+- **$2,000/year per agent**: formal certification letter on MELVcore letterhead, Zenodo-anchored report hash, named for regulatory / due diligence use
 - **$10,000/year**: enterprise license — unlimited agents, white-label report, SLA
 
 ### Wave 3 — Ecosystem Certification
@@ -319,7 +319,7 @@ This makes MELVcore Sandbox the first agent certification platform grounded in a
 
 ```
 MELVcore Sandbox — Architecture Design Document
-Session 9 · Ecotao Enterprises · L.W. Evans · Cape Town · March 2026
+Session 9 · L.W. Evans | ORCID: 0009-0001-0963-1840 | Cape Town · March 2026
 ORCID: 0009-0001-0963-1840
 Blueprint for Harmony · Cooperation Press, 2026 · ISBN 978-969-8992-10-1
 Zenodo DOI: 10.5281/zenodo.17680563

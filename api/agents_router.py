@@ -14,7 +14,7 @@ Endpoints
 All agent calls go through BaseAgent.run_task() so cost/benefit is correctly
 reported to the MELVcore kernel and φ is updated on each call.
 
-Author: L.W. Evans / Ecotao Enterprises
+Author: L.W. Evans | ORCID: 0009-0001-0963-1840 | Cape Town, South Africa
 """
 
 from fastapi import APIRouter, Request, HTTPException

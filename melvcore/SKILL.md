@@ -12,7 +12,7 @@ description: >
   testing, or latency measurement — MELVcore certifies cooperative stability,
   not task performance.
 version: "1.9.1"
-author: "L.W. Evans (Ecotao Enterprises CC, Cape Town)"
+author: "L.W. Evans | ORCID: 0009-0001-0963-1840 | Cape Town, South Africa"
 orcid: "0009-0001-0963-1840"
 zenodo_doi: "10.5281/zenodo.19029077"
 concept_doi: "10.5281/zenodo.17535157"

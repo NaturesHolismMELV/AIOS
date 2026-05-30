@@ -11,7 +11,7 @@ This file provides:
 The heavy lifting stays in core/melv_engine.py. This layer is the clean
 public face of the governance package.
 
-Blueprint for Harmony — L.W. Evans (Ecotao Enterprises, Cape Town)
+Blueprint for Harmony — L.W. Evans | ORCID: 0009-0001-0963-1840 | Cape Town, South Africa
 ORCID: 0009-0001-0963-1840
 """
 

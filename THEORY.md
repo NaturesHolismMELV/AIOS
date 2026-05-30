@@ -3,7 +3,7 @@
 **Modified Energetic Lotka-Volterra (MELV)**  
 *Mathematical foundations of cooperation in multi-agent systems*
 
-L.W. Evans · Ecotao Enterprises · Cape Town, South Africa  
+L.W. Evans | ORCID: 0009-0001-0963-1840 | Cape Town, South Africa  
 ORCID: [0009-0001-0963-1840](https://orcid.org/0009-0001-0963-1840)
 
 ---

@@ -28,7 +28,7 @@ Key principle (Grok): ε_architectural never enters the master equation.
 It is a boundary condition — a fixed thermal resistance in the heat-flow
 model. Provisioning β is futile against a fixed boundary condition.
 
-Blueprint for Harmony — L.W. Evans (Ecotao Enterprises, Cape Town)
+Blueprint for Harmony — L.W. Evans | ORCID: 0009-0001-0963-1840 | Cape Town, South Africa
 ORCID: 0009-0001-0963-1840
 """
 

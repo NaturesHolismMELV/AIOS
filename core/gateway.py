@@ -5,7 +5,7 @@ External agent registration and interaction reporting endpoint.
 Any developer's existing agent becomes MELVcore-governed via this JSON API.
 
 Built on the Modified Energetic Lotka-Volterra (MELV) framework.
-Blueprint for Harmony — L.W. Evans (Ecotao Enterprises, Cape Town)
+Blueprint for Harmony — L.W. Evans | ORCID: 0009-0001-0963-1840 | Cape Town, South Africa
 
 CANONICAL VARIABLE DEFINITIONS (do not deviate):
 ─────────────────────────────────────────────────

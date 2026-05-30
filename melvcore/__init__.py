@@ -4,7 +4,7 @@ MELVcore — Thermodynamic Governance Kernel for the Agentic Web
 Version 1.0.0
 
 Built on the Modified Energetic Lotka-Volterra (MELV) framework.
-Blueprint for Harmony — L.W. Evans (Ecotao Enterprises, Cape Town)
+Blueprint for Harmony — L.W. Evans | ORCID: 0009-0001-0963-1840 | Cape Town, South Africa
 ORCID: 0009-0001-0963-1840
 
 Nobody else has the physics.
@@ -53,7 +53,7 @@ Book      : Blueprint for Harmony, Cooperation Press 2026
 """
 
 __version__ = "2.5.0"
-__author__    = "L.W. Evans (Ecotao Enterprises)"
+__author__    = "L.W. Evans | ORCID: 0009-0001-0963-1840"
 __email__     = "web@ecotao.com"
 __license__   = "Apache-2.0"
 __orcid__     = "0009-0001-0963-1840"

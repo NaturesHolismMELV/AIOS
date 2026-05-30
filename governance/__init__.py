@@ -49,7 +49,7 @@ Design principles
 Analogy: MELVcore is to AIOS as Linux is to Ubuntu.
          This folder is the "kernel source" — AIOS wraps it into a platform.
 
-Blueprint for Harmony — L.W. Evans (Ecotao Enterprises, Cape Town)
+Blueprint for Harmony — L.W. Evans | ORCID: 0009-0001-0963-1840 | Cape Town, South Africa
 ORCID: 0009-0001-0963-1840
 """
 
@@ -91,7 +91,7 @@ from core.cost_calculator import (
 from governance.kernel import create_kernel, integrate_agent
 
 __version__ = "1.6.0"
-__author__   = "L.W. Evans (Ecotao Enterprises)"
+__author__   = "L.W. Evans | ORCID: 0009-0001-0963-1840"
 __license__  = "Apache-2.0"
 __orcid__    = "0009-0001-0963-1840"
 __doi__      = "10.5281/zenodo.17680563"

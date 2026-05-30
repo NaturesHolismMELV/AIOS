@@ -31,7 +31,7 @@ underlying Haiku pricing constants remain inviolable (Session 4 contract).
 MELV variable integrity — CostCalculator is cost-only:
   φ, β, i, CI  — never touched here.
 
-Author: L.W. Evans / Ecotao Enterprises
+Author: L.W. Evans | ORCID: 0009-0001-0963-1840 | Cape Town, South Africa
 """
 
 from dataclasses import dataclass, field

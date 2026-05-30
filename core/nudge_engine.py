@@ -21,7 +21,7 @@ The oxpecker / Channel 2 mechanism:
   and large mammals — cooperation emerging not from intent but from
   thermodynamic niche structure.
 
-Blueprint for Harmony — L.W. Evans (Ecotao Enterprises, Cape Town)
+Blueprint for Harmony — L.W. Evans | ORCID: 0009-0001-0963-1840 | Cape Town, South Africa
 ORCID: 0009-0001-0963-1840
 """
 

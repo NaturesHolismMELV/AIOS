@@ -140,4 +140,4 @@ This page:
 
 ---
 
-*Ecotao Enterprises · L.W. Evans · Cape Town · MELVcore v1.9.2 · Session 21.2*
+*L.W. Evans | ORCID: 0009-0001-0963-1840 | Cape Town, South Africa · MELVcore v1.9.2 · Session 21.2*

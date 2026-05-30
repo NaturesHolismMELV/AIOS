@@ -22,7 +22,7 @@ Origin: MAIES Event 4 (MAIES-adjacent ②) — quorum gate as agent output
   correspondence: Nadell et al. 2016 — bacterial quorum sensing suppresses
   costly cooperative behaviours below N_threshold.
 
-Blueprint for Harmony — L.W. Evans (Ecotao Enterprises, Cape Town)
+Blueprint for Harmony — L.W. Evans | ORCID: 0009-0001-0963-1840 | Cape Town, South Africa
 ORCID: 0009-0001-0963-1840
 """
 

@@ -1,7 +1,7 @@
 """
 DataAgent — Phase 2 Session 3 / Session 24.3.2
 Real HTTP calls to World Bank Open Data API (no API key required).
-Governed by MELVcore thermodynamic kernel (L.W. Evans, Ecotao Enterprises).
+Governed by MELVcore thermodynamic kernel (L.W. Evans | ORCID: 0009-0001-0963-1840 | Cape Town, South Africa).
 
 World Bank API docs: https://datahelpdesk.worldbank.org/knowledgebase/articles/889392
 

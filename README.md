@@ -4,11 +4,11 @@
 > MELVcore is an open-source governance kernel for multi-agent AI ecosystems.  
 > AIOS is the reference platform built on MELVcore.
 
-[![Version](https://img.shields.io/badge/version-2.7.0-brightgreen.svg)](https://github.com/NaturesHolismMELV/AIOS/blob/main/melvcore/pyproject.toml)
+[![Version](https://img.shields.io/badge/version-3.0.0-brightgreen.svg)](https://github.com/NaturesHolismMELV/AIOS/blob/main/melvcore/pyproject.toml)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://github.com/NaturesHolismMELV/AIOS/blob/main/LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://python.org)
 [![PyPI](https://img.shields.io/badge/PyPI-melvcore-orange.svg)](https://pypi.org/project/melvcore/)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19665563.svg)](https://doi.org/10.5281/zenodo.19665563)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20011156.svg)](https://doi.org/10.5281/zenodo.20011156)
 [![ORCID](https://img.shields.io/badge/ORCID-0009--0001--0963--1840-green.svg)](https://orcid.org/0009-0001-0963-1840)
 
 ---
@@ -110,8 +110,9 @@ See [INSTALL.md](INSTALL.md) and [DEPLOY.md](DEPLOY.md) for full setup.
 - **Sandbox certification engine** — Composite Longevity Score (CLS) for agents
 - **NudgeEngine** — graduated intervention ladder before hard governance actions
 - **Live dashboard** and REST API (Railway deployment)
-- **LangGraph adapter** for framework integration
-- **517+ passing tests** across the kernel and governance layer
+- **Seven framework adapters** — LangGraph, AutoGen, CrewAI (open-source);
+  Agentforce, Copilot Studio, Vertex AI, ServiceNow (enterprise)
+- **653 passing tests** across the kernel and governance layer
 
 ---
 
@@ -239,7 +240,7 @@ AIOS/
 ├── governance/     # NudgeEngine, bifurcation detection, kernel decisions
 ├── melvcore/       # PyPI-publishable package
 ├── melvcore_mcp/   # MCP server adapter
-├── adapters/       # LangGraph and framework adapters
+├── adapters/       # LangGraph, AutoGen, CrewAI, Agentforce, Copilot, Vertex, ServiceNow
 ├── agents/         # Reference agent implementations (OXPECKER-01, etc.)
 ├── api/            # FastAPI Gateway (AIOS server)
 ├── frontend/       # Live dashboard
@@ -279,8 +280,8 @@ endpoints. See [VALIDATION.md](VALIDATION.md) for the protocol.
                   Multi-Agent {AI} Systems},
   year         = {2026},
   publisher    = {Zenodo},
-  doi          = {10.5281/zenodo.19665563},
-  url          = {https://doi.org/10.5281/zenodo.19665563},
+  doi          = {10.5281/zenodo.20011156},
+  url          = {https://doi.org/10.5281/zenodo.20011156},
   orcid        = {0009-0001-0963-1840}
 }
 ```
@@ -302,9 +303,12 @@ framework, open an issue referencing the relevant section of [THEORY.md](THEORY.
 - Evans, L.W. (2026). *Blueprint for Harmony*. Cooperation Press.
   ISBN 978-969-8992-10-1.
 - Evans, L.W. (2026). MELVcore AIOS Platform. Zenodo.
-  DOI: [10.5281/zenodo.19665563](https://doi.org/10.5281/zenodo.19665563)
+  DOI: [10.5281/zenodo.20011156](https://doi.org/10.5281/zenodo.20011156)
 - Evans, L.W. (2026). MELV Agent-Based Model V2.1. Zenodo.
   DOI: [10.5281/zenodo.19422174](https://doi.org/10.5281/zenodo.19422174)
+- Evans, L.W. (2026). The MELV Framework — What Has Changed and Why:
+  A Guide for Non-Mathematical Readers. ResearchGate. CC BY 4.0.
+  DOI: [10.13140/RG.2.2.17524.10880](https://www.researchgate.net/publication/405214441)
 - Nadell, C.D., Drescher, K. & Foster, K.R. (2016). Spatial structure,
   cooperation and competition in biofilms. *Nature Reviews Microbiology*,
   14, 589–600.

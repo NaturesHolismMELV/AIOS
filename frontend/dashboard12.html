@@ -5801,9 +5801,15 @@ function _renderObserveValidation(d) {
   const sl = document.getElementById('obs-status-list');
   sl.innerHTML = (d.field_statuses || []).map(fs => {
     const colours = { 1:'#94a3b8', 2:'#fbbf24', 3:'#4ade80', 4:'#38bdf8' };
-    const c = colours[fs.status] || '#94a3b8';
+    // fs.status may be a raw number or nested under .epistemic_status —
+    // extract whichever is present; fall back to '①' display if absent.
+    const statusVal = (fs.status != null && fs.status !== undefined)
+      ? fs.status
+      : (fs.epistemic_status != null ? fs.epistemic_status : null);
+    const statusDisplay = statusVal != null ? `①②③④`[statusVal - 1] || statusVal : '①';
+    const c = colours[statusVal] || '#94a3b8';
     return `<span style="color:${c}">●</span> <strong style="color:var(--text)">${fs.variable}</strong> ` +
-           `status ${fs.status} · ${fs.reason}`;
+           `status ${statusDisplay} · ${fs.reason || ''}`;
   }).join('<br>');
 
   document.getElementById('obs-warnings-list').innerHTML =

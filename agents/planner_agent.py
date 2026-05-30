@@ -25,7 +25,7 @@ Cost normalisation (Session 6 — via CostCalculator)
   cost = CostCalculator.compute_cost(in_tok, out_tok, latency_s, "PLANNER")
   Profile: token_heavy (token_weight=1.4, latency_weight=0.6)
 
-Author: L.W. Evans / Ecotao Enterprises
+Author: L.W. Evans | ORCID: 0009-0001-0963-1840 | Cape Town, South Africa
 """
 
 import asyncio

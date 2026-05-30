@@ -16,7 +16,7 @@ Tests cover:
   - Edge cases: all N/A, single score, boundary scores (1, 10)
   - Landing page HTML contains wizard markers
 
-Author: L.W. Evans (Ecotao Enterprises) · Session 16 · v1.8.0
+Author: L.W. Evans | ORCID: 0009-0001-0963-1840 · Session 16 · v1.8.0
 """
 
 import json

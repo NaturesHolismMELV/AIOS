@@ -6,7 +6,7 @@ Certification infrastructure for the MELVcore Compatibility Registry.
 Answers the question: "Will my agent remain stable and cooperative as the
 ecosystem around it grows?"
 
-Based on: Blueprint for Harmony — L.W. Evans (Ecotao Enterprises, Cape Town)
+Based on: Blueprint for Harmony — L.W. Evans | ORCID: 0009-0001-0963-1840 | Cape Town, South Africa
 ORCID: 0009-0001-0963-1840
 Zenodo DOI: 10.5281/zenodo.17680563
 ISBN: 978-969-8992-10-1

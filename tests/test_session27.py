@@ -11,7 +11,7 @@ Eight tests covering:
   T7. Fragment value ∝ φ_a × φ_b (Stream 9 testable prediction)
   T8. OXPECKER ε_ecosystem weight = 0.5 (Brief §2.4 biological derivation)
 
-Blueprint for Harmony — L.W. Evans (Ecotao Enterprises, Cape Town)
+Blueprint for Harmony — L.W. Evans | ORCID: 0009-0001-0963-1840 | Cape Town, South Africa
 ORCID: 0009-0001-0963-1840
 """
 
