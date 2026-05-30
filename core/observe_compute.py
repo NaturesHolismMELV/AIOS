@@ -43,7 +43,7 @@ WHAT IS NOT HERE (Session 33 scope boundary)
 ══════════════════════════════════════════════════════════════════
   - σ full computation — MAIES-007 pending (stub returns status ①)
   - Framework adapters — in adapters/ module
-  - Dashboard — in frontend/dashboard12.html
+  - Dashboard — in frontend/dashboard13.html
   - Governance loop kernel integration — in MELVKernel.apply_observation()
 
 Author: Laurence W. Evans · ORCID: 0009-0001-0963-1840

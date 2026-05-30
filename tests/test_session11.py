@@ -13,7 +13,7 @@ Tests (12 total):
    6.  Default ?n=200 returns at most 200 items
 
   Dashboard UI (6):
-   7.  frontend/dashboard12.html exists
+   7.  frontend/dashboard13.html exists
    8.  sec-sandbox section is present
    9.  ci-history panel element is present
   10.  Sandbox nav item references sec-sandbox
@@ -110,11 +110,11 @@ def test_ci_history_default_n():
 
 # ── DASHBOARD UI TESTS ────────────────────────────────────────────────────
 
-# dashboard11.html was superseded by dashboard12.html in Session 12.
+# dashboard11.html was superseded by dashboard13.html in Session 12.
 # Tests now point to the current dashboard file.
 DASHBOARD_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-    "frontend", "dashboard12.html"
+    "frontend", "dashboard13.html"
 )
 
 
@@ -125,42 +125,42 @@ def dashboard_html():
 
 
 def test_dashboard11_file_exists():
-    """7. frontend/dashboard12.html exists."""
+    """7. frontend/dashboard13.html exists."""
     assert os.path.exists(DASHBOARD_PATH), (
-        f"dashboard12.html not found at {DASHBOARD_PATH}"
+        f"dashboard13.html not found at {DASHBOARD_PATH}"
     )
 
 
 def test_dashboard11_has_sandbox_section(dashboard_html):
     """8. sec-sandbox section is present in HTML."""
     assert "sec-sandbox" in dashboard_html, (
-        "Expected id='sec-sandbox' section in dashboard12.html"
+        "Expected id='sec-sandbox' section in dashboard13.html"
     )
 
 
 def test_dashboard11_has_ci_history_panel(dashboard_html):
     """9. CI History panel is present in HTML."""
     assert "ci-history" in dashboard_html, (
-        "Expected ci-history element in dashboard12.html"
+        "Expected ci-history element in dashboard13.html"
     )
 
 
 def test_dashboard11_has_sandbox_nav(dashboard_html):
     """10. Sandbox nav item references sec-sandbox."""
     assert "sec-sandbox" in dashboard_html, (
-        "Expected nav item referencing sec-sandbox in dashboard12.html"
+        "Expected nav item referencing sec-sandbox in dashboard13.html"
     )
 
 
 def test_dashboard11_has_submit_form(dashboard_html):
     """11. Submit form input sb-agent-id is present."""
     assert "sb-agent-id" in dashboard_html, (
-        "Expected input id='sb-agent-id' in dashboard12.html"
+        "Expected input id='sb-agent-id' in dashboard13.html"
     )
 
 
 def test_dashboard11_has_registry_panel(dashboard_html):
     """12. Registry panel sb-registry-list is present."""
     assert "sb-registry-list" in dashboard_html, (
-        "Expected element id='sb-registry-list' in dashboard12.html"
+        "Expected element id='sb-registry-list' in dashboard13.html"
     )

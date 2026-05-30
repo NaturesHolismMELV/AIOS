@@ -266,7 +266,7 @@ async def _mcp_streamable_endpoint(request: _Request):
 
     await _sh_asgi(scope, request.receive, request._send)
 
-# Serve frontend static files — enables http://localhost:8000/frontend/dashboard12.html
+# Serve frontend static files — enables http://localhost:8000/frontend/dashboard13.html
 _frontend_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend")
 app.mount("/frontend", StaticFiles(directory=_frontend_dir), name="frontend")
 
@@ -425,7 +425,7 @@ async def health_simple():
 @app.get("/dashboard")
 async def dashboard_page():
     """Shortcut to the live MELVcore dashboard."""
-    path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend", "dashboard12.html")
+    path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend", "dashboard13.html")
     return FileResponse(path, media_type="text/html")
 
 

@@ -252,7 +252,7 @@ def print_startup_banner(host: str = "0.0.0.0", port: int = 8000):
 ╠══════════════════════════════════════════════════════╣
 ║  Server:      http://{host}:{port:<5}                   ║
 ║  Landing:     http://{host}:{port}/demo                 ║
-║  Dashboard:   http://{host}:{port}/frontend/dashboard12 ║
+║  Dashboard:   http://{host}:{port}/frontend/dashboard13 ║
 ║  MCP (HTTP):  http://{host}:{port}/mcp                  ║
 ║  MCP (SSE):   http://{host}:{port}/mcp/sse              ║
 ╠══════════════════════════════════════════════════════╣

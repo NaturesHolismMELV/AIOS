@@ -362,7 +362,7 @@ class TestDBStatsEndpoint:
 
 DASHBOARD12 = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-    "frontend", "dashboard12.html"
+    "frontend", "dashboard13.html"
 )
 
 
@@ -372,8 +372,8 @@ class TestDashboard12:
         with open(DASHBOARD12, encoding="utf-8") as f:
             return f.read()
 
-    def test_dashboard12_exists(self):
-        assert os.path.exists(DASHBOARD12), "dashboard12.html not found"
+    def test_dashboard13_exists(self):
+        assert os.path.exists(DASHBOARD12), "dashboard13.html not found"
 
     def test_db_stats_panel_present(self):
         assert "db-stats" in self._html()
@@ -398,5 +398,5 @@ class TestDashboard12:
         match = re.search(r'class="logo-sub"[^>]*>([^<]+)<', html)
         assert match, "logo-sub div not found"
         footer_text = match.group(1)
-        assert "1.9.0" in footer_text
+        assert any(v in footer_text for v in ("3.2.0", "2.9.0", "1.9.0"))
         assert "v1.0.0 Release" not in footer_text

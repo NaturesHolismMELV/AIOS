@@ -54,7 +54,7 @@ demo with light traffic).
 
 6. **Your URLs**
    - Landing page: `https://YOUR-APP.railway.app/demo`
-   - Dashboard:    `https://YOUR-APP.railway.app/frontend/dashboard12.html`
+   - Dashboard:    `https://YOUR-APP.railway.app/frontend/dashboard13.html`
    - API docs:     `https://YOUR-APP.railway.app/docs`
    - Health check: `https://YOUR-APP.railway.app/health`
 
@@ -90,7 +90,7 @@ demo with light traffic).
 
 The server mounts `frontend/` as a static directory and serves:
 - `/demo` → `frontend/landing.html` (public landing page)
-- `/frontend/dashboard12.html` → full internal dashboard
+- `/frontend/dashboard13.html` → full internal dashboard
 
 To verify static serving works locally:
 ```bash

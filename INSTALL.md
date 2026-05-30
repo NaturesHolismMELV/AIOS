@@ -84,7 +84,7 @@ You should see the MELVcore startup banner in the terminal.
 
 ## 5 — Open the dashboard
 
-Open `frontend/dashboard12.html` directly in your browser (no web server needed — it is a static file).
+Open `frontend/dashboard13.html` directly in your browser (no web server needed — it is a static file).
 
 The status indicator in the top-right corner will turn green when connected.
 
