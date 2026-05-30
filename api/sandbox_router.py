@@ -717,7 +717,7 @@ async def assess_epsilon_profile(
     n = len(profiles)
     return {
         "session":      "30",
-        "version":      "3.1.1",
+        "version":      "3.2.0",
         "agent_count":  n,
         "profiles":     profiles,
         "badge_counts": badge_counts,

@@ -151,7 +151,7 @@ app = FastAPI(
         "Blueprint for Harmony — L.W. Evans, Cooperation Press 2026. "
         "ISBN 978-969-8992-10-1 · ORCID: 0009-0001-0963-1840"
     ),
-    version="3.1.1",
+    version="3.2.0",
     lifespan=_lifespan,
     redirect_slashes=False,   # prevents /mcp → /mcp/ redirect for MCP transports
     swagger_ui_parameters={"persistAuthorization": True},
@@ -414,13 +414,13 @@ class InteractionPost(BaseModel):
 
 @app.get("/")
 async def root():
-    return {"system": "AIOS", "version": "3.1.1", "status": "operational",
+    return {"system": "AIOS", "version": "3.2.0", "status": "operational",
             "demo": "/demo", "docs": "/docs", "mcp": "/mcp", "mcp_sse": "/mcp/sse"}
 
 @app.get("/health")
 async def health_simple():
     """Simple health check for load balancers / Railway uptime monitor."""
-    return {"status": "ok", "version": "3.1.1"}
+    return {"status": "ok", "version": "3.2.0"}
 
 @app.get("/dashboard")
 async def dashboard_page():
@@ -815,5 +815,103 @@ async def eta_cycle_endpoint(req: EtaCycleRequest):
             "n_identified":   result["n_identified"],
             "warnings":       result["warnings"],
         }
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+# ── Session 37 — Dungbeetle + Irreversibility Endpoints (v3.2.0) ─────────────
+
+from core.melv_engine import (
+    DUNGBEETLE_THRESHOLD as _DUNGBEETLE_THRESHOLD,
+    PHI_IRREV_DEFAULT    as _PHI_IRREV_DEFAULT,
+    T_GOV_DEFAULT        as _T_GOV_DEFAULT,
+)
+
+
+@app.get("/api/dungbeetle")
+async def dungbeetle_endpoint():
+    """
+    Identify Dungbeetle nodes in the current service coupling graph.
+
+    Session 37 (v3.2.0). Canonical reference v1.2 Part VI Item 7.
+
+    A Dungbeetle node is a single agent whose removal drops the ecosystem
+    below the cooperation threshold (beta_service < 0.50).  These are the
+    critical enablers of cooperative viability — their failure is a
+    governance risk requiring monitoring and contingency planning.
+
+    Returns:
+      beta_service_full, quorum_met, dungbeetle_nodes (with sensitivity
+      scores S_v sorted descending), non_dungbeetle_nodes, warnings.
+    """
+    return kernel.compute_dungbeetle_nodes()
+
+
+class IrreversibilityRequest(BaseModel):
+    agent_id:   str
+    eta:        float = 0.93
+    f_eligible: float = 1.0
+    t_gov:      float = _T_GOV_DEFAULT
+
+
+@app.post("/api/irreversibility")
+async def irreversibility_endpoint(req: IrreversibilityRequest):
+    """
+    Compute the irreversibility boundary diagnostic for an agent.
+
+    Session 37 (v3.2.0). Canonical reference v1.2 Part VI Items 11, 12.
+
+    Three-zone classification:
+      VIABLE (GREEN)             — phi > phi_viable
+      RECOVERABLE_URGENT (AMBER) — phi_irrev <= phi <= phi_viable
+      IRREVERSIBLE (RED)         — phi < phi_irrev
+
+    phi_viable  ~= 1 - 1/(epsilon x beta_norm x eta)
+    phi_irrev    = 1 - exp(-alpha x t_gov)
+    T_rec        = (1/alpha) x ln((1-phi_current)/(1-phi_viable)) / f_eligible
+
+    f_eligible is the fraction of post-disruption time where both
+    R < 0.50 AND i < 1 hold simultaneously (recovery clock is running).
+    Supply from L1 telemetry data; defaults to 1.0 (pessimistic bound).
+    """
+    try:
+        result = kernel.irreversibility_diagnostic(
+            agent_id=req.agent_id,
+            eta=req.eta,
+            f_eligible=req.f_eligible,
+            t_gov=req.t_gov,
+        )
+        # Serialise math.inf as null for JSON compatibility
+        if result.get("t_rec") == float("inf"):
+            result["t_rec"] = None
+            result["warnings"].append(
+                "T_rec serialised as null (JSON): recovery clock is frozen (f_eligible=0)."
+            )
+        return result
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@app.get("/api/irreversibility/{agent_id}")
+async def irreversibility_get(
+    agent_id:   str,
+    eta:        float = 0.93,
+    f_eligible: float = 1.0,
+    t_gov:      float = _T_GOV_DEFAULT,
+):
+    """
+    GET convenience wrapper for the irreversibility diagnostic.
+    Same semantics as POST /api/irreversibility.
+    """
+    try:
+        result = kernel.irreversibility_diagnostic(
+            agent_id=agent_id,
+            eta=eta,
+            f_eligible=f_eligible,
+            t_gov=t_gov,
+        )
+        if result.get("t_rec") == float("inf"):
+            result["t_rec"] = None
+        return result
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))

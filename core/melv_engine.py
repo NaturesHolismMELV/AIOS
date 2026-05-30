@@ -262,6 +262,30 @@ PHI_BUILD_RATE_ALPHA = 0.01   # α — φ build rate; calibrate from ABM T1.5
 PHI_DECAY_RATE_DELTA = 0.10   # δ — φ decay rate; δ ≫ α (10× asymmetry)
 PHI_GATEWAY_THRESHOLD = 0.50  # R threshold for Heaviside gates (canonical)
 
+# ── SESSION 37 — DUNGBEETLE + IRREVERSIBILITY CONSTANTS (v3.2.0) ─────────
+# Canonical reference v1.2 Part VI Items 7, 11, 12.
+#
+# Dungbeetle condition (MAIES Form C, May 2026):
+#   Node v is a Dungbeetle iff:
+#     beta_service(Omega) >= 0.5  AND  beta_service(Omega_{-v}) < 0.5
+#   Sensitivity score: S_v = beta_service(Omega) - beta_service(Omega_{-v})
+#   Epistemic status: theoretical (threshold 0.5 = PHI_GATEWAY_THRESHOLD,
+#   consistent with Nadell et al. quorum analogy; empirical cal. pending).
+#
+# Irreversibility boundary:
+#   phi_viable ~= 1 - 1/(epsilon x beta_norm x eta)
+#   Three governance zones:
+#     VIABLE            : phi > phi_viable
+#     RECOVERABLE_URGENT: phi_irrev <= phi <= phi_viable
+#     IRREVERSIBLE      : phi < phi_irrev
+#   T_rec = (1/alpha) x ln((1-phi_current)/(1-phi_viable)) / f_eligible
+#   Epistemic status: theoretical (ABM Test Suite 3 validation pending).
+
+DUNGBEETLE_THRESHOLD = 0.50   # beta_service(Omega) threshold for Dungbeetle
+PHI_IRREV_DEFAULT    = 0.10   # phi below which recovery is operationally irreversible
+T_GOV_DEFAULT        = 100.0  # default governance horizon (time units)
+                               # for phi_irrev = 1 - exp(-alpha x T_gov)
+
 
 @dataclass
 class EpsilonProfile:
@@ -2011,4 +2035,330 @@ class MELVKernel:
             "ci_snapshot":       ci_snapshot,
             "governance_events": events,
             "warnings":          warnings,
+        }
+
+    # ── SESSION 37 — DUNGBEETLE NODES ────────────────────────────────────────
+
+    def compute_dungbeetle_nodes(self) -> dict:
+        """
+        Identify Dungbeetle nodes in the current service coupling graph Omega.
+
+        Formal condition (canonical reference v1.2 Part VI Item 7):
+          Node v is a Dungbeetle iff:
+            beta_service(Omega) >= DUNGBEETLE_THRESHOLD
+            AND
+            beta_service(Omega_{-v}) < DUNGBEETLE_THRESHOLD
+
+        That is: the full ecosystem is above the cooperation threshold, but
+        removing node v alone drops the ecosystem below it.  v is therefore
+        the critical enabler of cooperative viability.
+
+        Sensitivity score:
+          S_v = beta_service(Omega) - beta_service(Omega_{-v})
+
+        Higher S_v = greater single-node dependency (governance risk).
+
+        Epistemic status: DUNGBEETLE_THRESHOLD = 0.50 = PHI_GATEWAY_THRESHOLD,
+        consistent with the Nadell et al. quorum analogy (MAIES Event 2).
+        Empirical calibration pending (ABM Test Suite 3).
+
+        Returns
+        -------
+        dict with keys:
+          beta_service_full   : float  — beta_service of full Omega
+          threshold           : float  — DUNGBEETLE_THRESHOLD (0.50)
+          quorum_met          : bool   — beta_service_full >= threshold
+          dungbeetle_nodes    : list[dict]  — one entry per Dungbeetle node:
+                                  agent_id, beta_service_without, sensitivity,
+                                  is_dungbeetle=True
+          non_dungbeetle_nodes: list[dict]  — agents with is_dungbeetle=False
+          warnings            : list[str]
+        """
+        warnings_out = []
+
+        # Full ecosystem beta_service
+        omega_full   = self.compute_omega()
+        beta_full    = omega_full["beta_service"]
+        n            = omega_full["n"]
+
+        if n == 0:
+            return {
+                "beta_service_full":    0.0,
+                "threshold":            DUNGBEETLE_THRESHOLD,
+                "quorum_met":           False,
+                "dungbeetle_nodes":     [],
+                "non_dungbeetle_nodes": [],
+                "warnings":             ["No agents registered — Dungbeetle analysis requires n >= 2"],
+            }
+
+        if n == 1:
+            warnings_out.append("Only one agent — leave-one-out requires n >= 2")
+            return {
+                "beta_service_full":    round(beta_full, 4),
+                "threshold":            DUNGBEETLE_THRESHOLD,
+                "quorum_met":           beta_full >= DUNGBEETLE_THRESHOLD,
+                "dungbeetle_nodes":     [],
+                "non_dungbeetle_nodes": [],
+                "warnings":             warnings_out,
+            }
+
+        quorum_met = beta_full >= DUNGBEETLE_THRESHOLD
+
+        dungbeetle_nodes    = []
+        non_dungbeetle_nodes = []
+
+        ids = list(self.agents.keys())
+
+        for agent_id in ids:
+            # ── Leave-one-out: recompute Omega_{-v} ─────────────────────────
+            # Temporarily capture the leave-one-out adjacency
+            n_minus = n - 1
+            if n_minus == 0:
+                beta_without = 0.0
+            else:
+                remaining = [aid for aid in ids if aid != agent_id]
+                idx_r     = {aid: i for i, aid in enumerate(remaining)}
+                A_r       = np.zeros((n_minus, n_minus))
+
+                recent  = self.interactions[-100:]
+                weights_r: dict[tuple, list] = {}
+                for rec in recent:
+                    if rec.agent_a in idx_r and rec.agent_b in idx_r:
+                        key = (rec.agent_a, rec.agent_b)
+                        weights_r.setdefault(key, []).append(1.0 - rec.i_factor)
+
+                for (a, b), vals in weights_r.items():
+                    avg = sum(vals) / len(vals)
+                    A_r[idx_r[a], idx_r[b]] = avg
+                    A_r[idx_r[b], idx_r[a]] = avg
+
+                if n_minus == 1:
+                    # Scalar case: single agent has no coupling
+                    beta_without = 0.0
+                else:
+                    eigs_r       = np.linalg.eigvalsh(A_r)
+                    lambda_max_r = float(eigs_r[-1])
+                    beta_without = lambda_max_r / n_minus
+
+            sensitivity = round(beta_full - beta_without, 4)
+            beta_without = round(beta_without, 4)
+
+            # Dungbeetle condition: full >= threshold AND without < threshold
+            is_dungbeetle = quorum_met and (beta_without < DUNGBEETLE_THRESHOLD)
+
+            entry = {
+                "agent_id":            agent_id,
+                "beta_service_without": beta_without,
+                "sensitivity":         sensitivity,
+                "is_dungbeetle":       is_dungbeetle,
+            }
+
+            if is_dungbeetle:
+                dungbeetle_nodes.append(entry)
+            else:
+                non_dungbeetle_nodes.append(entry)
+
+        # Sort Dungbeetle nodes by sensitivity descending (highest risk first)
+        dungbeetle_nodes.sort(key=lambda x: x["sensitivity"], reverse=True)
+
+        if quorum_met and not dungbeetle_nodes:
+            warnings_out.append(
+                "Ecosystem above threshold but no Dungbeetle nodes found: "
+                "cooperative viability is distributed (resilient topology)."
+            )
+
+        return {
+            "beta_service_full":    round(beta_full, 4),
+            "threshold":            DUNGBEETLE_THRESHOLD,
+            "quorum_met":           quorum_met,
+            "dungbeetle_nodes":     dungbeetle_nodes,
+            "non_dungbeetle_nodes": non_dungbeetle_nodes,
+            "warnings":             warnings_out,
+        }
+
+    # ── SESSION 37 — IRREVERSIBILITY BOUNDARY DIAGNOSTIC ─────────────────────
+
+    def irreversibility_diagnostic(
+        self,
+        agent_id: str,
+        eta:      float = 0.93,
+        f_eligible: float = 1.0,
+        t_gov:    float = T_GOV_DEFAULT,
+    ) -> dict:
+        """
+        Compute the irreversibility boundary diagnostic for an agent.
+
+        Canonical reference v1.2 Part VI Items 11, 12 (Discovery 1 & 2).
+        Carryover document v3.0 Session 39 specification.
+
+        Three-zone governance classification:
+          VIABLE            : phi > phi_viable
+          RECOVERABLE_URGENT: phi_irrev <= phi <= phi_viable
+          IRREVERSIBLE      : phi < phi_irrev
+
+        Parameters
+        ----------
+        agent_id    : str   — agent to evaluate
+        eta         : float — saturation capacity in (0,1]; default bee-flower 0.93
+        f_eligible  : float — fraction of post-disruption time with R < 0.50 AND
+                              i < 1 simultaneously (measured externally from L1);
+                              defaults to 1.0 (pessimistic: recovery clock never
+                              freezes) until L1 telemetry provides empirical data.
+        t_gov       : float — governance horizon in time units for phi_irrev;
+                              default T_GOV_DEFAULT = 100 units.
+
+        Derived quantities
+        ------------------
+        phi_viable ~= 1 - 1 / (epsilon x beta_norm x eta)
+          The floor phi must exceed for cooperative viability.
+          Lower eta => shallower attractor => smaller viable zone.
+          Returns None (uncomputable) when epsilon x beta_norm x eta <= 0.
+
+        phi_irrev = 1 - exp(-alpha x t_gov)
+          The phi below which recovery within the governance horizon is
+          operationally impossible given the build rate alpha.
+          Uses PHI_BUILD_RATE_ALPHA (theoretical; ABM T1.5 pending).
+
+        T_rec = (1/alpha) x ln((1-phi_current)/(1-phi_viable)) / f_eligible
+          Expected recovery time from phi_current back to phi_viable.
+          Returns None when phi_current >= phi_viable (already viable).
+          Returns math.inf when f_eligible = 0 (recovery clock frozen).
+          f_eligible < 1.0 extends T_rec proportionally (path-dependency).
+
+        Returns
+        -------
+        dict with keys:
+          agent_id        : str
+          phi_current     : float
+          epsilon         : float
+          beta_norm       : float
+          eta             : float
+          phi_viable      : float | None
+          phi_irrev       : float
+          zone            : str   — VIABLE | RECOVERABLE_URGENT | IRREVERSIBLE
+          zone_color      : str   — GREEN | AMBER | RED (dashboard convenience)
+          t_rec           : float | None  — expected recovery time (None if already viable)
+          f_eligible      : float
+          alpha           : float — PHI_BUILD_RATE_ALPHA used
+          warnings        : list[str]
+          epistemic_status: str   — theoretical (ABM Test Suite 3 validation pending)
+        """
+        from core.melv_engine import _beta_norm  # already in scope but explicit
+
+        warnings_out = []
+
+        if agent_id not in self.agents:
+            return {
+                "agent_id":         agent_id,
+                "zone":             "UNKNOWN",
+                "zone_color":       "GREY",
+                "warnings":         [f"Agent '{agent_id}' not registered in kernel"],
+                "epistemic_status": "not_applicable",
+            }
+
+        agent   = self.agents[agent_id]
+        phi_cur = agent.phi
+        epsilon = agent.epsilon
+
+        # beta_norm from BetaEnvironment (compute resource — most general)
+        beta_raw  = self.beta.get("compute")
+        beta_norm_val = _beta_norm(beta_raw)
+
+        alpha = PHI_BUILD_RATE_ALPHA
+
+        # ── phi_viable ───────────────────────────────────────────────────────
+        denom = epsilon * beta_norm_val * eta
+        if denom <= 1e-9:
+            phi_viable = None
+            warnings_out.append(
+                f"phi_viable uncomputable: epsilon x beta_norm x eta = {denom:.6f} <= 0. "
+                "Agent may have epsilon=0 or beta=0."
+            )
+        else:
+            phi_viable_raw = 1.0 - 1.0 / denom
+            # phi_viable is meaningful only in (0, 1); clamp for display
+            phi_viable = max(0.0, min(1.0, round(phi_viable_raw, 5)))
+            if phi_viable_raw <= 0.0:
+                warnings_out.append(
+                    f"phi_viable = {phi_viable_raw:.4f} <= 0: cooperative viability "
+                    "does not require minimum phi — system is below saturation regime."
+                )
+                phi_viable = 0.0
+            elif phi_viable_raw >= 1.0:
+                warnings_out.append(
+                    f"phi_viable = {phi_viable_raw:.4f} >= 1.0: epsilon x beta_norm x eta "
+                    "is too low to sustain cooperation regardless of phi. "
+                    "Increase epsilon, beta, or eta first."
+                )
+                phi_viable = 1.0
+
+        # ── phi_irrev ────────────────────────────────────────────────────────
+        phi_irrev = round(1.0 - math.exp(-alpha * t_gov), 5)
+
+        # ── T_rec ────────────────────────────────────────────────────────────
+        t_rec = None
+        if phi_viable is not None and phi_cur < phi_viable:
+            if f_eligible <= 0.0:
+                t_rec = math.inf
+                warnings_out.append(
+                    "f_eligible = 0: recovery clock is frozen (R >= 0.50 or i >= 1.0 "
+                    "in all post-disruption time). Recovery is path-blocked."
+                )
+            else:
+                inner = (1.0 - phi_cur) / max(1.0 - phi_viable, 1e-9)
+                if inner <= 0:
+                    t_rec = math.inf
+                else:
+                    t_rec = round((1.0 / alpha) * math.log(inner) / f_eligible, 2)
+                    if t_rec < 0:
+                        # phi_cur > phi_viable path (shouldn't reach here but guard it)
+                        t_rec = 0.0
+
+        # ── Zone classification ───────────────────────────────────────────────
+        # Priority order: IRREVERSIBLE > VIABLE > RECOVERABLE_URGENT
+        # phi_irrev check must come first — an agent can have phi > phi_viable(clamped=0)
+        # but still be below phi_irrev, which means recovery is impossible regardless.
+        if phi_viable is None:
+            zone       = "UNKNOWN"
+            zone_color = "GREY"
+            warnings_out.append("Zone classification unavailable: phi_viable not computable.")
+        elif phi_cur < phi_irrev:
+            zone       = "IRREVERSIBLE"
+            zone_color = "RED"
+            warnings_out.append(
+                f"IRREVERSIBLE: phi={phi_cur:.4f} < phi_irrev={phi_irrev:.4f}. "
+                f"Recovery within t_gov={t_gov} time units is operationally impossible "
+                f"at current build rate alpha={alpha}. Governance intervention required."
+            )
+        elif phi_cur > phi_viable:
+            zone       = "VIABLE"
+            zone_color = "GREEN"
+        else:
+            zone       = "RECOVERABLE_URGENT"
+            zone_color = "AMBER"
+            if t_rec is not None and t_rec != math.inf:
+                warnings_out.append(
+                    f"RECOVERABLE_URGENT: phi={phi_cur:.4f}. "
+                    f"Estimated recovery time T_rec={t_rec:.1f} units "
+                    f"(f_eligible={f_eligible:.2f}). Monitor phi build rate."
+                )
+
+        return {
+            "agent_id":         agent_id,
+            "phi_current":      round(phi_cur, 5),
+            "epsilon":          round(epsilon, 5),
+            "beta_norm":        round(beta_norm_val, 5),
+            "eta":              round(eta, 5),
+            "phi_viable":       phi_viable,
+            "phi_irrev":        phi_irrev,
+            "zone":             zone,
+            "zone_color":       zone_color,
+            "t_rec":            t_rec,
+            "f_eligible":       f_eligible,
+            "alpha":            alpha,
+            "warnings":         warnings_out,
+            "epistemic_status": (
+                "② theoretical — phi_viable formula canonical v1.2; "
+                "ABM Test Suite 3 validation pending"
+            ),
         }

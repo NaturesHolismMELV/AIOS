@@ -52,7 +52,7 @@ Book      : Blueprint for Harmony, Cooperation Press 2026
             ISBN 978-969-8992-10-1
 """
 
-__version__ = "3.1.1"
+__version__ = "3.2.0"
 __author__    = "L.W. Evans | ORCID: 0009-0001-0963-1840"
 __email__     = "laurence@naturesholismmelv.com"
 __license__   = "Apache-2.0"
