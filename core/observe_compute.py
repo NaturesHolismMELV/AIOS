@@ -1,6 +1,6 @@
 """
-observe_compute.py — MELVcore Session 33 · v2.9.0
-==================================================
+observe_compute.py — MELVcore Session 33–36 · v3.1.1
+======================================================
 Full observe() primitive computation logic.
 
 Accepts a validated ObservationPayload and computes φ, σ, β, and ε
@@ -593,6 +593,25 @@ class ObservationComputer:
         # β < 1 → cooperative (R < 0.50). None if β not computable.
         r_value = beta.value if beta.computable else None
 
+        # Session 36 — d_value populated from telemetry if available.
+        # Falls back to 0.0 when no L1 records exist (bootstrap).
+        d_value = 0.0
+        try:
+            from core.telemetry import AIOSTelemetry as _AIOSTelemetry  # local import
+            import os as _os
+            _db = _os.environ.get(
+                "AIOS_DB_PATH",
+                _os.path.join(
+                    _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+                    "aios_state.db",
+                ),
+            )
+            _tel = _AIOSTelemetry(_db)
+            d_value = _tel.compute_d_value_for_agent(payload.agent_id)
+            _tel.close()
+        except Exception:
+            pass  # telemetry layer unavailable; keep d_value=0.0
+
         return ObservationResult(
             agent_id=payload.agent_id,
             phi=phi,
@@ -604,5 +623,5 @@ class ObservationComputer:
             warnings=all_warnings,
             timestamp=datetime.utcnow(),
             r_value=r_value,
-            d_value=0.0,   # D(t) = 0 until three-layer logging (Session 36)
+            d_value=d_value,  # D(t) from L1 rolling mean (Session 36)
         )

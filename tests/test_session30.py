@@ -359,13 +359,13 @@ def test_session30_router_session_tag_in_source():
     with open(router_path) as f:
         source = f.read()
     assert '"session":      "30"' in source
-    assert '"version":      "2.6.0"' in source
+    assert '"version":      "3.1.1"' in source
 
 
 def test_session30_server_version_in_source():
-    """T14: version 2.6.0 in server.py source."""
+    """T14: version 3.1.1 in server.py source."""
     import os
     server_path = os.path.join(os.path.dirname(__file__), "..", "api", "server.py")
     with open(server_path) as f:
         source = f.read()
-    assert chr(118)+"ersion="+chr(34)+"2.6.0"+chr(34) in source
+    assert chr(118)+"ersion="+chr(34)+"3.1.1"+chr(34) in source

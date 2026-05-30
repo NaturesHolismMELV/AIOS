@@ -4,11 +4,11 @@ build-backend = "setuptools.backends.legacy:build"
 
 [project]
 name            = "melvcore"
-version = "1.6.0"
+version = "3.1.1"
 description     = "Thermodynamic cooperation kernel — MELVcore v1.0.0"
 readme          = "README.md"
 license         = { text = "Apache-2.0" }
-authors         = [{ name = "L.W. Evans", email = "web@ecotao.com" }]
+authors         = [{ name = "L.W. Evans", email = "laurence@naturesholismmelv.com" }]
 keywords        = [
     "multi-agent systems", "cooperation", "thermodynamics",
     "MELV", "MELVcore", "AI governance", "agentic"

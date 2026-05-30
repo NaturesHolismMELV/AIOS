@@ -183,6 +183,7 @@ ISBN 978-969-8992-10-1. See also [THEORY.md](THEORY.md).
 
 | Evidence Stream | Result |
 |----------------|--------|
+| Cooperation Theorem | CI=1.0 confirmed live 20 April 2026. Preprint DOI: [10.5281/zenodo.19665563](https://doi.org/10.5281/zenodo.19665563) |
 | ABM V2.1 (405 runs) | 100% ESS invasion recovery (34/34). Hartigan dip p≈0. r = −0.866. φ×β sensitivity = 1.0, specificity = 0.997. DOI: [10.5281/zenodo.19422174](https://doi.org/10.5281/zenodo.19422174) |
 | DeepSeek blind reconstruction (Mar 2026) | 8 MELV axioms provided; master equation not given. DeepSeek independently derived β·i < 1 as the cooperation viability condition and recovered φ timescale separation. Full transcript in [VALIDATION.md](VALIDATION.md). |
 | Live bifurcation demo (27 Apr 2026) | Single stress agent drove CI to trough of 0.713. Recovery to 0.830 while stress agent still active. Theorem held. |
@@ -231,6 +232,18 @@ GET  /sandbox/registry            # MELVcore Compatibility Registry
 | [SECURITY.md](SECURITY.md) | Security policy |
 
 ---
+
+## Architecture
+
+
+**Key components:** MELVKernel (governance loop), Agent Registry (agent lifecycle management), NudgeEngine (escalation), CostCalculator (C/B proxy), three-layer telemetry (L1/L2/L3).
+
+**API Reference:** Full OpenAPI docs at `/docs` on the live platform. Core endpoints: `POST /api/observe`, `GET /api/status`, `POST /api/telemetry/l1`, `GET /api/telemetry/l3/{agent_id}`, `POST /api/telemetry/eta_cycle`.
+
+**Roadmap:** Session 37 — Dungbeetle formalisation + irreversibility diagnostic (v3.2.0). Session 38 — ABM Equation 7 integration. Session 40 — Canonical document v1.3 + Zenodo preprint update.
+
+> Legacy version 1.0.0 tagged at first PyPI release; current platform is v3.1.1.
+MELVcore implements the Modified Energetic Lotka-Volterra (MELV) cooperation-evolution framework as a governance kernel for multi-agent AI systems. The master equation i(t) = i₀ × (1 − ε × φ(t) × β_norm(t)) governs cooperation dynamics, with three-layer telemetry (L1/L2/L3) for φ perpetuity tracking and η saturation estimation (BI-NLS).
 
 ## Repository Structure
 

@@ -151,7 +151,7 @@ app = FastAPI(
         "Blueprint for Harmony — L.W. Evans, Cooperation Press 2026. "
         "ISBN 978-969-8992-10-1 · ORCID: 0009-0001-0963-1840"
     ),
-    version="2.6.0",
+    version="3.1.1",
     lifespan=_lifespan,
     redirect_slashes=False,   # prevents /mcp → /mcp/ redirect for MCP transports
     swagger_ui_parameters={"persistAuthorization": True},
@@ -414,13 +414,13 @@ class InteractionPost(BaseModel):
 
 @app.get("/")
 async def root():
-    return {"system": "AIOS", "version": "3.1.0", "status": "operational",
+    return {"system": "AIOS", "version": "3.1.1", "status": "operational",
             "demo": "/demo", "docs": "/docs", "mcp": "/mcp", "mcp_sse": "/mcp/sse"}
 
 @app.get("/health")
 async def health_simple():
     """Simple health check for load balancers / Railway uptime monitor."""
-    return {"status": "ok", "version": "3.1.0"}
+    return {"status": "ok", "version": "3.1.1"}
 
 @app.get("/dashboard")
 async def dashboard_page():
@@ -579,3 +579,241 @@ async def oxpecker_status_endpoint():
     MAIES Event 1 (NotebookLM): bifurcation recycling mechanism, now implemented.
     """
     return oxpecker_agent.status()
+
+
+# ── Session 36 — Telemetry Endpoints (v3.1.1) ────────────────────────────────
+
+from core.telemetry import (
+    AIOSTelemetry as _AIOSTelemetry,
+    L1Record as _L1Record,
+    L2Snapshot as _L2Snapshot,
+    build_c_proxy as _build_c_proxy,
+    build_b_proxy as _build_b_proxy,
+    build_tax_proxy as _build_tax_proxy,
+    ETA_MIN_INTERACTIONS as _ETA_MIN_INTERACTIONS,
+)
+
+def _get_telemetry() -> "_AIOSTelemetry":
+    """Return a telemetry instance sharing the same DB as AIOSPersistence."""
+    import os
+    db_path = os.environ.get(
+        "AIOS_DB_PATH",
+        os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                     "aios_state.db"),
+    )
+    return _AIOSTelemetry(db_path)
+
+
+class TelemetryL1Request(BaseModel):
+    agent_id:           str
+    c_proxy:            Optional[float] = None
+    b_proxy:            Optional[float] = None
+    tax_proxy:          Optional[float] = None
+    session_id:         Optional[str]   = None
+    task_type:          Optional[str]   = None
+    token_count:        Optional[int]   = None
+    latency_ms:         Optional[float] = None
+    error_rate:         float           = 0.0
+    task_completion:    float           = 0.0
+    downstream_utility: float           = 0.0
+    information_gain:   float           = 0.0
+
+
+@app.post("/api/telemetry/l1")
+async def telemetry_l1_endpoint(req: TelemetryL1Request):
+    """
+    Log a per-exchange L1 telemetry record.
+
+    Session 36 (v3.1.1) — Three-layer logging.
+    If c_proxy / b_proxy are not supplied, they are computed from
+    token_count, latency_ms, error_rate, and outcome fields.
+    tax_proxy defaults to 10% of c_proxy (protocol + context + alignment).
+    """
+    try:
+        tel = _get_telemetry()
+        c = req.c_proxy if req.c_proxy is not None else _build_c_proxy(
+            token_count=req.token_count or 0,
+            latency_ms=req.latency_ms or 0.0,
+            error_rate=req.error_rate,
+        )
+        b = req.b_proxy if req.b_proxy is not None else _build_b_proxy(
+            task_completion=req.task_completion,
+            downstream_utility=req.downstream_utility,
+            information_gain=req.information_gain,
+        )
+        tax = req.tax_proxy if req.tax_proxy is not None else _build_tax_proxy(c)
+
+        record = _L1Record(
+            agent_id=req.agent_id,
+            c_proxy=c,
+            b_proxy=b,
+            tax_proxy=tax,
+            session_id=req.session_id,
+            task_type=req.task_type,
+            token_count=req.token_count,
+            latency_ms=req.latency_ms,
+            error_rate=req.error_rate,
+            task_completion=req.task_completion,
+            downstream_utility=req.downstream_utility,
+            information_gain=req.information_gain,
+        )
+        tel.log_l1(record)
+        count = tel.get_l1_count(req.agent_id)
+        tel.close()
+        return {
+            "logged": True,
+            "agent_id": req.agent_id,
+            "c_proxy": round(c, 6),
+            "b_proxy": round(b, 6),
+            "tax_proxy": round(tax, 6),
+            "l1_total_count": count,
+            "eta_eligible": count >= _ETA_MIN_INTERACTIONS,
+        }
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@app.get("/api/telemetry/l1/{agent_id}")
+async def telemetry_l1_get(agent_id: str, n: int = 50):
+    """
+    Return recent L1 records for an agent.
+    Max n=200. Returns list of exchange-level C/B/TAX proxies.
+    """
+    try:
+        tel = _get_telemetry()
+        records = tel.get_l1_recent(agent_id, n=min(n, 200))
+        d_value = tel.compute_d_value_for_agent(agent_id)
+        tel.close()
+        return {
+            "agent_id": agent_id,
+            "count": len(records),
+            "d_value_current": round(d_value, 6),
+            "records": [
+                {
+                    "timestamp": r.timestamp,
+                    "c_proxy": round(r.c_proxy, 6),
+                    "b_proxy": round(r.b_proxy, 6),
+                    "tax_proxy": round(r.tax_proxy, 6),
+                    "task_type": r.task_type,
+                }
+                for r in records
+            ],
+        }
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+class TelemetryL2Request(BaseModel):
+    agent_id:     str
+    i_value:      Optional[float] = None
+    phi:          Optional[float] = None
+    beta_service: Optional[float] = None
+    r_value:      Optional[float] = None
+    sigma:        Optional[float] = None
+    ci:           Optional[float] = None
+    eta_estimate: Optional[float] = None
+    rse:          Optional[float] = None
+    rse_band:     Optional[str]   = None
+    session_id:   Optional[str]   = None
+
+
+@app.post("/api/telemetry/l2")
+async def telemetry_l2_endpoint(req: TelemetryL2Request):
+    """
+    Log a per-snapshot L2 governance telemetry record.
+
+    Session 36 (v3.1.1). Captures i(t), φ, β_service, R, σ, CI,
+    η_estimate, and RSE at a governance evaluation point.
+    """
+    try:
+        tel = _get_telemetry()
+        snap = _L2Snapshot(
+            agent_id=req.agent_id,
+            i_value=req.i_value,
+            phi=req.phi,
+            beta_service=req.beta_service,
+            r_value=req.r_value,
+            sigma=req.sigma,
+            ci=req.ci,
+            eta_estimate=req.eta_estimate,
+            rse=req.rse,
+            rse_band=req.rse_band,
+            session_id=req.session_id,
+        )
+        tel.log_l2(snap)
+        tel.close()
+        return {"logged": True, "agent_id": req.agent_id}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@app.get("/api/telemetry/l3/{agent_id}")
+async def telemetry_l3_get(agent_id: str):
+    """
+    Return current L3 η posterior for an agent.
+
+    Session 36 (v3.1.1). Returns eta_posterior, variance, governance_flag,
+    and interaction_count. Triggers BI-NLS estimation if ≥ 100 L1 records
+    exist and the agent has cooperative observations available.
+    """
+    try:
+        tel = _get_telemetry()
+        l3 = tel.get_l3(agent_id)
+        tel.close()
+        from core.telemetry import RSE_EXCELLENT, RSE_ACCEPTABLE, RSE_POOR
+        return {
+            "agent_id":          l3.agent_id,
+            "eta_posterior":     round(l3.eta_posterior, 5),
+            "eta_variance":      round(l3.eta_variance, 5),
+            "eta_architectural": round(l3.eta_architectural, 5),
+            "interaction_count": l3.interaction_count,
+            "governance_flag":   l3.governance_flag,
+            "last_updated":      l3.last_updated,
+            "rse_thresholds": {
+                "EXCELLENT":  RSE_EXCELLENT,
+                "ACCEPTABLE": RSE_ACCEPTABLE,
+                "POOR":       RSE_POOR,
+            },
+        }
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+class EtaCycleRequest(BaseModel):
+    agent_id:     str
+    observations: list   # list of {i_observed, epsilon, phi, beta_norm}
+    eta_init:     Optional[float] = None
+
+
+@app.post("/api/telemetry/eta_cycle")
+async def eta_cycle_endpoint(req: EtaCycleRequest):
+    """
+    Run one BI-NLS η estimation cycle for an agent.
+
+    Session 36 (v3.1.1). Requires at least 10 observations in the request
+    body; recommended ≥ 100 for well-identified estimates (S(u) > 0.3).
+
+    Returns eta, rse, rse_band, governance_flag, convergence metadata.
+    """
+    try:
+        tel = _get_telemetry()
+        result = tel.run_eta_cycle(
+            agent_id=req.agent_id,
+            observations=req.observations,
+            eta_init=req.eta_init,
+        )
+        tel.close()
+        return {
+            "agent_id":       req.agent_id,
+            "eta":            round(result["eta"], 5),
+            "rse":            round(result["rse"], 6) if result["rse"] is not None else None,
+            "rse_band":       result["rse_band"],
+            "governance_flag":result["governance_flag"],
+            "converged":      result["converged"],
+            "iterations":     result["iterations"],
+            "n_obs":          result["n_obs"],
+            "n_identified":   result["n_identified"],
+            "warnings":       result["warnings"],
+        }
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))

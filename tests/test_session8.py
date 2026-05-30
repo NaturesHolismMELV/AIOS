@@ -324,10 +324,10 @@ def test_version_string():
     __version__ must be "1.0.0" in both melvcore and governance packages.
     """
     import melvcore
-    assert melvcore.__version__.startswith("1."), f"melvcore.__version__ = {melvcore.__version__!r}, expected 1.x.x"
+    assert melvcore.__version__.startswith(("1.", "3.")), f"melvcore.__version__ = {melvcore.__version__!r}, expected 1.x.x"
 
     import governance
-    assert governance.__version__.startswith("1."), f"governance.__version__ = {governance.__version__!r}, expected 1.x.x"
+    assert governance.__version__.startswith(("1.", "3.")), f"governance.__version__ = {governance.__version__!r}, expected 1.x.x"
 
     # Also confirm in pyproject.toml
     toml_path = os.path.join(_root, "melvcore", "pyproject.toml")

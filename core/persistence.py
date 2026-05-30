@@ -125,6 +125,9 @@ CREATE TABLE IF NOT EXISTS oxpecker_fragments (
 CREATE INDEX IF NOT EXISTS idx_oxpecker_status ON oxpecker_fragments(status);
 """
 
+# Session 36 — telemetry tables appended via AIOSTelemetry.apply_schema()
+# Called during AIOSPersistence._connect() so all tables live in the same DB.
+
 # How many rows to keep per append-only table (rolling window)
 MAX_INTERACTIONS  = 10_000
 MAX_CI_HISTORY    = 5_000
@@ -159,6 +162,12 @@ class AIOSPersistence:
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.execute("PRAGMA synchronous=NORMAL")
         self._conn.executescript(_SCHEMA)
+        # Session 36 — apply telemetry tables to same DB
+        try:
+            from core.telemetry import TELEMETRY_SCHEMA
+            self._conn.executescript(TELEMETRY_SCHEMA)
+        except Exception as _tel_exc:
+            logger.warning("AIOSPersistence: telemetry schema skipped: %s", _tel_exc)
         logger.debug("AIOSPersistence: schema applied")
 
     def close(self):
