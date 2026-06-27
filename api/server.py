@@ -715,6 +715,9 @@ class TelemetryL2Request(BaseModel):
     rse:          Optional[float] = None
     rse_band:     Optional[str]   = None
     session_id:   Optional[str]   = None
+    # alignment pass v3.3.0
+    beta_i_inf:   Optional[float] = None
+    delta_gate:   Optional[float] = None
 
 
 @app.post("/api/telemetry/l2")
@@ -739,10 +742,45 @@ async def telemetry_l2_endpoint(req: TelemetryL2Request):
             rse=req.rse,
             rse_band=req.rse_band,
             session_id=req.session_id,
+            beta_i_inf=req.beta_i_inf,
+            delta_gate=req.delta_gate,
         )
         tel.log_l2(snap)
         tel.close()
         return {"logged": True, "agent_id": req.agent_id}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@app.get("/api/telemetry/l2/{agent_id}")
+async def telemetry_l2_get(agent_id: str, n: int = 200):
+    """
+    Return recent L2 governance snapshots for an agent.
+
+    Session 40 (v3.3.0). Returns up to n records ordered by timestamp
+    descending, including beta_i_inf and delta_gate from the alignment pass.
+    """
+    try:
+        tel = _get_telemetry()
+        rows = tel.get_l2_recent(agent_id=agent_id, n=n)
+        tel.close()
+        return {
+            "agent_id": agent_id,
+            "count":    len(rows),
+            "records":  [
+                {
+                    "agent_id":     r.agent_id,
+                    "phi":          r.phi,
+                    "beta_service": r.beta_service,
+                    "r_value":      r.r_value,
+                    "ci":           r.ci,
+                    "beta_i_inf":   r.beta_i_inf,
+                    "delta_gate":   r.delta_gate,
+                    "timestamp":    r.timestamp,
+                }
+                for r in rows
+            ],
+        }
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
 
