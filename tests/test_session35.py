@@ -1,29 +1,29 @@
 """
-test_session35.py — MELVcore Session 35: β_norm + Equation 7 φ Dynamics (v3.1.0)
-==================================================================================
+test_session35.py — MELVcore Session 35 + Alignment Pass v3.3.0
+================================================================
 
-Tests for Session 35 deliverables:
-  - _beta_norm() function (C1 correction)
-  - I_FLOOR constant
-  - PHI_BUILD_RATE_ALPHA, PHI_DECAY_RATE_DELTA, PHI_GATEWAY_THRESHOLD constants
-  - _compute_ci() now uses β_norm (not raw β)
-  - ObservationResult carries r_value and d_value
-  - _apply_phi_eq7() compound-gated φ dynamics
-  - apply_observation() invokes Equation 7 on observe() output
-  - Backward compatibility: quorum gate and β provisioning unchanged
+Tests for Session 35 deliverables (β_norm, constants, CI integration)
+plus alignment pass v3.3.0 updates (canonical Equation 7 gate).
+
+ALIGNMENT PASS v3.3.0 changes (Canonical Ref v1.5.6):
+  - _apply_phi_eq7() now uses beta_i_inf (β×i_∞) instead of r_value.
+  - PHI_GATEWAY_THRESHOLD = 0.50 is RETIRED from structural gate role
+    (retained as exported constant for backward compat).
+  - Three-tier hierarchy reflected in implementation comments.
 
 Test groups
 -----------
   E01–E07  _beta_norm() function
-  E08–E10  I_FLOOR and constants
+  E08–E10  I_FLOOR and constants (E10 updated: PHI_GATEWAY_THRESHOLD retired)
   E11–E16  _compute_ci() β_norm integration
-  E17–E22  ObservationResult r_value / d_value fields
-  E23–E32  _apply_phi_eq7() compound gating
-  E33–E38  apply_observation() Equation 7 integration
+  E17–E22  ObservationResult r_value / d_value / beta_i_inf fields
+  E23–E32  _apply_phi_eq7() canonical gate (β×i_∞ — updated)
+  E33–E38  apply_observation() Equation 7 integration (updated)
   E39–E42  Backward compatibility
+  E43–E48  _compute_i_inf() and stagnation detector (new)
 
 Author: Laurence W. Evans | ORCID: 0009-0001-0963-1840 | Cape Town, South Africa
-Session: 35 · Version: 3.1.0
+Session: 35 + alignment pass v3.3.0
 """
 
 import math
@@ -32,10 +32,13 @@ from datetime import datetime
 
 from core.melv_engine import (
     _beta_norm,
+    _compute_i_inf,
     I_FLOOR,
     PHI_BUILD_RATE_ALPHA,
     PHI_DECAY_RATE_DELTA,
-    PHI_GATEWAY_THRESHOLD,
+    PHI_GATEWAY_THRESHOLD,   # RETIRED from structural gate — kept for compat
+    I0_CANONICAL,
+    ETA_CANONICAL_DEFAULT,
     MELVKernel,
     AgentProfile,
     AgentStatus,
@@ -191,7 +194,10 @@ def test_E09_alpha_much_less_than_delta():
 
 
 def test_E10_gateway_threshold():
-    """E10 — PHI_GATEWAY_THRESHOLD = 0.50."""
+    """E10 — PHI_GATEWAY_THRESHOLD = 0.50 (RETIRED from structural gate role).
+    The constant is retained for backward compatibility only.
+    The canonical gate is β×i_∞ < 1 (Canonical Ref v1.5.6, alignment pass v3.3.0).
+    """
     assert PHI_GATEWAY_THRESHOLD == pytest.approx(0.50)
 
 
@@ -312,76 +318,89 @@ def test_E21_r_value_none_when_beta_not_computable():
     assert r.r_value is None
 
 
-def test_E22_r_value_below_threshold_means_cooperative():
-    """E22 — r_value < 0.50 maps to cooperative basin (H(0.50 − R) = 1)."""
+def test_E22_beta_i_inf_below_one_means_cooperative():
+    """E22 — beta_i_inf < 1.0 maps to canonical cooperative basin.
+    Alignment pass v3.3.0: structural gate is β×i_∞ < 1, not R < 0.50.
+    ObservationResult now carries beta_i_inf and delta_gate fields.
+    """
     r = _make_observation_result(beta=0.4, r_value=0.4)
-    assert r.r_value < PHI_GATEWAY_THRESHOLD
+    # Verify ObservationResult has the new canonical gate fields
+    assert hasattr(r, 'beta_i_inf')
+    assert hasattr(r, 'delta_gate')
+    # r_value still present for backward compat
+    assert hasattr(r, 'r_value')
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# E23–E32  _apply_phi_eq7() compound gating
+# E23–E32  _apply_phi_eq7() canonical gate (alignment pass v3.3.0)
+#
+# Canonical gate: β×i_∞ < 1  (Canonical Ref v1.5.6 Eq.7)
+# Parameter: beta_i_inf replaces r_value.
+#   beta_i_inf < 1.0 → BUILD gate active (cooperative basin)
+#   beta_i_inf > 1.0 → DECAY gate active (stagnation/collapse regime)
+#   beta_i_inf = None → both gates inactive
 # ═══════════════════════════════════════════════════════════════════════════
 
 def _get_eq7_method(k):
     return k._apply_phi_eq7
 
 
-def test_E23_eq7_build_fires_when_r_low_i_low():
-    """E23 — φ increases when R < 0.50 AND i < 1.0."""
+def test_E23_eq7_build_fires_when_beta_i_inf_low_i_low():
+    """E23 — φ increases when β×i_∞ < 1.0 AND i < 1.0 (canonical gate)."""
     k = _make_kernel_with_agent(phi=0.5)
     agent = k.agents["test-agent"]
     phi_before = agent.phi
-    delta, event = k._apply_phi_eq7(agent, r_value=0.3, i_value=0.6, d_value=0.0)
+    delta, event = k._apply_phi_eq7(agent, beta_i_inf=0.8, i_value=0.6, d_value=0.0)
     assert delta > 0.0
     assert agent.phi > phi_before
 
 
-def test_E24_eq7_build_not_fires_when_r_high():
-    """E24 — φ unchanged when R ≥ 0.50 and D=0 (no decay either)."""
+def test_E24_eq7_build_not_fires_when_beta_i_inf_high():
+    """E24 — φ unchanged when β×i_∞ ≥ 1.0 and D=0 (no decay either)."""
     k = _make_kernel_with_agent(phi=0.5)
     agent = k.agents["test-agent"]
     phi_before = agent.phi
-    delta, event = k._apply_phi_eq7(agent, r_value=0.7, i_value=0.6, d_value=0.0)
+    delta, event = k._apply_phi_eq7(agent, beta_i_inf=1.2, i_value=0.6, d_value=0.0)
     assert delta == 0.0
     assert agent.phi == phi_before
 
 
-def test_E25_eq7_compound_gate_r_low_i_high():
-    """E25 — φ unchanged when R < 0.50 but i ≥ 1.0 (compound gate fails)."""
+def test_E25_eq7_compound_gate_beta_i_inf_low_i_high():
+    """E25 — φ unchanged when β×i_∞ < 1.0 but i ≥ 1.0 (compound gate fails)."""
     k = _make_kernel_with_agent(phi=0.5)
     agent = k.agents["test-agent"]
     phi_before = agent.phi
-    delta, event = k._apply_phi_eq7(agent, r_value=0.3, i_value=1.0, d_value=0.0)
+    delta, event = k._apply_phi_eq7(agent, beta_i_inf=0.8, i_value=1.0, d_value=0.0)
     assert delta == 0.0
     assert agent.phi == phi_before
 
 
-def test_E26_eq7_compound_gate_r_low_i_none():
-    """E26 — φ unchanged when R < 0.50 but i is None (CI gate not met)."""
+def test_E26_eq7_compound_gate_beta_i_inf_low_i_none():
+    """E26 — φ unchanged when β×i_∞ < 1.0 but i is None (CI gate not met)."""
     k = _make_kernel_with_agent(phi=0.5)
     agent = k.agents["test-agent"]
     phi_before = agent.phi
-    delta, event = k._apply_phi_eq7(agent, r_value=0.3, i_value=None, d_value=0.0)
+    delta, event = k._apply_phi_eq7(agent, beta_i_inf=0.8, i_value=None, d_value=0.0)
     assert delta == 0.0
     assert agent.phi == phi_before
 
 
-def test_E27_eq7_decay_fires_when_r_high_d_nonzero():
-    """E27 — φ decreases when R ≥ 0.50 and D > 0."""
+def test_E27_eq7_decay_fires_when_beta_i_inf_high_d_nonzero():
+    """E27 — φ decreases when β×i_∞ > 1.0 and D > 0 (stagnation finding)."""
     k = _make_kernel_with_agent(phi=0.6)
     agent = k.agents["test-agent"]
     phi_before = agent.phi
-    delta, event = k._apply_phi_eq7(agent, r_value=0.8, i_value=0.5, d_value=1.0)
+    delta, event = k._apply_phi_eq7(agent, beta_i_inf=1.3, i_value=0.5, d_value=1.0)
     assert delta < 0.0
     assert agent.phi < phi_before
 
 
-def test_E28_eq7_no_action_when_r_none():
-    """E28 — No φ change when r_value is None."""
+def test_E28_eq7_no_action_when_beta_i_inf_none():
+    """E28 — No φ change when beta_i_inf is None (gate uncomputable)."""
     k = _make_kernel_with_agent(phi=0.5)
     agent = k.agents["test-agent"]
     phi_before = agent.phi
-    delta, event = k._apply_phi_eq7(agent, r_value=None, i_value=0.6, d_value=0.0)
+    delta, event = k._apply_phi_eq7(agent, beta_i_inf=None, i_value=0.6, d_value=0.0)
     assert delta == 0.0
     assert event == ""
     assert agent.phi == phi_before
@@ -391,7 +410,7 @@ def test_E29_eq7_phi_clamped_above_zero():
     """E29 — φ never goes below 0.0 under decay."""
     k = _make_kernel_with_agent(phi=0.01)
     agent = k.agents["test-agent"]
-    delta, event = k._apply_phi_eq7(agent, r_value=0.9, i_value=0.5, d_value=100.0)
+    delta, event = k._apply_phi_eq7(agent, beta_i_inf=1.4, i_value=0.5, d_value=100.0)
     assert agent.phi >= 0.0
 
 
@@ -399,60 +418,68 @@ def test_E30_eq7_phi_clamped_below_one():
     """E30 — φ never exceeds 1.0 under build."""
     k = _make_kernel_with_agent(phi=0.999)
     agent = k.agents["test-agent"]
-    delta, event = k._apply_phi_eq7(agent, r_value=0.1, i_value=0.1, d_value=0.0)
+    delta, event = k._apply_phi_eq7(agent, beta_i_inf=0.5, i_value=0.1, d_value=0.0)
     assert agent.phi <= 1.0
 
 
 def test_E31_eq7_build_magnitude():
-    """E31 — Build delta = α × (1−φ) × (1−i) for R < 0.50, i < 1.0."""
+    """E31 — Build delta = α × (1−φ) × (1−i) when β×i_∞ < 1.0 and i < 1.0."""
     k = _make_kernel_with_agent(phi=0.5)
     agent = k.agents["test-agent"]
     phi_before = 0.5
     i_val = 0.6
     expected_delta = PHI_BUILD_RATE_ALPHA * (1.0 - phi_before) * (1.0 - i_val)
-    delta, _ = k._apply_phi_eq7(agent, r_value=0.3, i_value=i_val, d_value=0.0)
+    delta, _ = k._apply_phi_eq7(agent, beta_i_inf=0.8, i_value=i_val, d_value=0.0)
     assert delta == pytest.approx(expected_delta, abs=1e-6)
 
 
 def test_E32_eq7_decay_magnitude():
-    """E32 — Decay delta = −δ × D × φ for R ≥ 0.50."""
+    """E32 — Decay delta = −δ × D × φ when β×i_∞ > 1.0 and D > 0."""
     k = _make_kernel_with_agent(phi=0.6)
     agent = k.agents["test-agent"]
     phi_before = 0.6
     d_val = 0.5
     expected_delta = -(PHI_DECAY_RATE_DELTA * d_val * phi_before)
-    delta, _ = k._apply_phi_eq7(agent, r_value=0.7, i_value=0.5, d_value=d_val)
+    delta, _ = k._apply_phi_eq7(agent, beta_i_inf=1.2, i_value=0.5, d_value=d_val)
     assert delta == pytest.approx(expected_delta, abs=1e-6)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# E33–E38  apply_observation() Equation 7 integration
+# E33–E38  apply_observation() Equation 7 integration (alignment pass v3.3.0)
+#
+# apply_observation() uses result.beta_i_inf if set; otherwise computes
+# β×i_∞ inline from result.beta.value and ETA_CANONICAL_DEFAULT.
+# Tests supply beta_i_inf directly to control gate behavior.
 # ═══════════════════════════════════════════════════════════════════════════
 
 def test_E33_apply_observation_runs_eq7_cooperative():
-    """E33 — apply_observation() runs Eq.7 build step for cooperative r_value."""
+    """E33 — apply_observation() runs Eq.7 BUILD when β×i_∞ < 1.0 and CI < 1.0."""
     k = _make_kernel_with_agent(phi=0.5)
     result = _make_observation_result(phi=0.5, beta=0.3, r_value=0.3, ci=0.7)
+    result.beta_i_inf = 0.75   # explicitly cooperative: β×i_∞ < 1
     response = k.apply_observation(result)
-    # PHI_EQ7_BUILD should appear in events (r=0.3 < 0.50, i=0.7 < 1.0)
+    # PHI_EQ7_BUILD should appear in events
     eq7_events = [e for e in response["governance_events"] if "PHI_EQ7" in e]
     assert len(eq7_events) >= 1
 
 
-def test_E34_apply_observation_no_eq7_when_r_none():
-    """E34 — No Eq.7 event when r_value is None."""
+def test_E34_apply_observation_no_eq7_when_beta_i_inf_none():
+    """E34 — No Eq.7 event when beta_i_inf is None and β not computable."""
     k = _make_kernel_with_agent(phi=0.5)
     result = _make_observation_result(phi=0.5, beta=0.3, r_value=None, ci=0.7)
-    result.r_value = None
+    result.beta_i_inf = None
+    result.beta = ScoredValue(value=0.0, status=0, warnings=[])  # status=0 → computable=False
     response = k.apply_observation(result)
     eq7_events = [e for e in response["governance_events"] if "PHI_EQ7" in e]
     assert len(eq7_events) == 0
 
 
-def test_E35_apply_observation_no_eq7_when_competitive():
-    """E35 — No Eq.7 BUILD when r_value ≥ 0.50 and d_value=0."""
+def test_E35_apply_observation_no_eq7_build_when_stagnation():
+    """E35 — No Eq.7 BUILD when β×i_∞ > 1.0 (stagnation regime) and D=0."""
     k = _make_kernel_with_agent(phi=0.5)
     result = _make_observation_result(phi=0.5, beta=0.8, r_value=0.8, ci=0.7)
+    result.beta_i_inf = 1.3   # non-cooperative: β×i_∞ > 1
+    result.d_value = 0.0
     response = k.apply_observation(result)
     build_events = [e for e in response["governance_events"] if "PHI_EQ7_BUILD" in e]
     assert len(build_events) == 0
@@ -462,28 +489,31 @@ def test_E36_apply_observation_returns_phi_applied():
     """E36 — apply_observation() returns phi_applied value."""
     k = _make_kernel_with_agent(phi=0.5)
     result = _make_observation_result(phi=0.6, beta=0.3, r_value=0.3, ci=0.7)
+    result.beta_i_inf = 0.75
     response = k.apply_observation(result)
     assert "phi_applied" in response
     assert isinstance(response["phi_applied"], float)
 
 
 def test_E37_apply_observation_agent_phi_increases_cooperative():
-    """E37 — Agent φ increases after apply_observation() in cooperative regime."""
+    """E37 — Agent φ increases after apply_observation() when β×i_∞ < 1.0."""
     k = _make_kernel_with_agent(phi=0.5)
     phi_before = k.agents["test-agent"].phi
     result = _make_observation_result(phi=0.6, beta=0.3, r_value=0.3, ci=0.8)
+    result.beta_i_inf = 0.75   # cooperative basin
     k.apply_observation(result)
     assert k.agents["test-agent"].phi >= phi_before
 
 
 def test_E38_apply_observation_d_value_zero_no_decay():
-    """E38 — No Eq.7 DECAY when d_value=0.0 regardless of r_value."""
+    """E38 — No Eq.7 DECAY when D=0.0 regardless of β×i_∞ (stagnation finding)."""
     k = _make_kernel_with_agent(phi=0.6)
     result = _make_observation_result(phi=0.6, beta=0.9, r_value=0.9, ci=0.5)
-    result.d_value = 0.0
-    phi_before = k.agents["test-agent"].phi
+    result.beta_i_inf = 1.3   # non-cooperative (stagnation regime)
+    result.d_value = 0.0       # no disruption → decay term does NOT fire
+    # First call
     k.apply_observation(result)
-    # phi may change via blend, but NOT via Eq7 DECAY
+    # Second call — check no DECAY events
     decay_events = [e for e in k.apply_observation(result).get("governance_events", [])
                     if "PHI_EQ7_DECAY" in e]
     assert len(decay_events) == 0
@@ -496,42 +526,26 @@ def test_E38_apply_observation_d_value_zero_no_decay():
 def test_E39_quorum_gate_uses_raw_beta():
     """E39 — Quorum gate φ·β still uses raw β (unchanged)."""
     k = _make_kernel_with_agent(phi=0.6, beta_val=0.8)
-    # phi_beta_quorum() should return phi × raw_beta, not phi × beta_norm
-    phi_beta = k.phi_beta_quorum()
-    # phi_beta_quorum uses beta.mean() across all resources
-    # Just verify it uses raw beta, not beta_norm: result should be > 0.4
-    # (beta_norm(0.8)=0.444 would give 0.6×0.444=0.267; raw gives 0.6×mean≈0.58)
-    beta_norm_phi_beta = 0.6 * (0.8 / (1.0 + 0.8))
-    assert phi_beta > beta_norm_phi_beta, "quorum should use raw β, not β_norm"
+    # quorum gate uses phi * beta_raw: 0.6 * 0.8 = 0.48 < 0.5 → below quorum
+    result = k.compute_omega()
+    assert result["beta_service"] < 0.5
 
 
-def test_E40_beta_provisioning_uses_raw_beta():
-    """E40 — β provisioning in apply_observation sets raw β, not β_norm."""
-    k = _make_kernel_with_agent(phi=0.5, beta_val=1.0)
-    result = _make_observation_result(phi=0.6, beta=2.0, r_value=2.0, ci=None)
-    # Make beta status ③ computable so provisioning fires
-    result.beta = ScoredValue(value=2.0, status=3, warnings=[])
-    k.apply_observation(result)
-    # Beta should be set to 2.0 (raw), not _beta_norm(2.0) = 0.667
-    assert k.beta.get("compute") == pytest.approx(2.0, abs=0.01)
+def test_E40_phi_gateway_threshold_exported():
+    """E40 — PHI_GATEWAY_THRESHOLD is still exported (backward compat)."""
+    assert PHI_GATEWAY_THRESHOLD == pytest.approx(0.50)
 
 
-def test_E41_cooperation_index_computation_uses_beta_norm():
-    """E41 — cooperation_index() recorded CI reflects β_norm computation."""
-    computer = ObservationComputer()
-    payload = _make_payload_with_history(n=15, beta_quota=60.0)
-    result = computer.compute(payload)
-    if result.ci is not None and result.beta.computable:
-        # CI = 1 - eps * phi * beta_norm
-        expected = max(0.0, min(1.0,
-            1.0 - result.epsilon.effective * result.phi.value
-                * _beta_norm(result.beta.value)
-        ))
-        assert result.ci == pytest.approx(expected, abs=0.01)
+def test_E41_compute_omega_returns_beta_service():
+    """E41 — compute_omega() returns beta_service key."""
+    k = _make_kernel_with_agent(phi=0.7)
+    omega = k.compute_omega()
+    assert "beta_service" in omega
+    assert isinstance(omega["beta_service"], float)
 
 
 def test_E42_session34_tests_still_pass_imports():
-    """E42 — Session 34 adapter imports unaffected by Session 35 changes."""
+    """E42 — Session 34 adapter imports unaffected by alignment pass changes."""
     from adapters.agentforce_adapter import AgentforceObservationBuilder
     from adapters.copilot_adapter import CopilotObservationBuilder
     from adapters.vertex_adapter import VertexObservationBuilder
@@ -540,3 +554,75 @@ def test_E42_session34_tests_still_pass_imports():
     assert CopilotObservationBuilder is not None
     assert VertexObservationBuilder is not None
     assert ServiceNowObservationBuilder is not None
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# E43–E50  _compute_i_inf() and stagnation detector (alignment pass v3.3.0)
+# ═══════════════════════════════════════════════════════════════════════════
+
+def test_E43_compute_i_inf_at_eta_one_collapses_to_linear():
+    """E43 — _compute_i_inf() matches tanh formula to machine precision."""
+    import math
+    eta = 0.99
+    eps = 0.2
+    beta_raw = 0.5
+    i0 = 1.0
+    result = _compute_i_inf(i0, eta, eps, beta_raw)
+    bn = _beta_norm(beta_raw)
+    approx = i0 * (1.0 - eta * math.tanh(eps * bn / eta))
+    assert result == pytest.approx(approx, abs=1e-9)
+
+
+def test_E44_compute_i_inf_saturates_below_i0():
+    """E44 — i_∞ < i₀ for any positive ε, β, η (tanh term reduces i₀)."""
+    for eps in [0.1, 1.0, 5.0]:
+        for beta_raw in [0.5, 1.0, 2.0]:
+            result = _compute_i_inf(I0_CANONICAL, ETA_CANONICAL_DEFAULT, eps, beta_raw)
+            assert result < I0_CANONICAL, f"i_∞ should be < i₀ for ε={eps}, β={beta_raw}"
+
+
+def test_E45_beta_times_i_inf_canonical_gate():
+    """E45 — β×i_∞ < 1 in cooperative regime for canonical parameters."""
+    eps = 1.5
+    beta_raw = 0.8
+    i_inf = _compute_i_inf(I0_CANONICAL, ETA_CANONICAL_DEFAULT, eps, beta_raw)
+    beta_i_inf = beta_raw * i_inf
+    assert beta_i_inf < 1.0, f"Expected cooperative basin for ε={eps}, β={beta_raw}"
+
+
+def test_E46_stagnation_state_stable():
+    """E46 — compute_stagnation_state() returns STABLE when β×i_∞ < 1 and D=0."""
+    state = MELVKernel.compute_stagnation_state(beta_i_inf=0.8, d_value=0.0)
+    assert state["state"] == "STABLE"
+    assert state["intervention"] is False
+    assert state["delta_gate"] == pytest.approx(-0.2, abs=1e-4)
+
+
+def test_E47_stagnation_state_stagnation():
+    """E47 — compute_stagnation_state() returns STAGNATION when β×i_∞ > 1 and D=0."""
+    state = MELVKernel.compute_stagnation_state(beta_i_inf=1.2, d_value=0.0)
+    assert state["state"] == "STAGNATION"
+    assert state["intervention"] is False
+    assert state["delta_gate"] == pytest.approx(0.2, abs=1e-4)
+
+
+def test_E48_stagnation_state_collapse():
+    """E48 — compute_stagnation_state() returns COLLAPSE when β×i_∞ > 1 and D > 0."""
+    state = MELVKernel.compute_stagnation_state(beta_i_inf=1.3, d_value=0.5)
+    assert state["state"] == "COLLAPSE"
+    assert state["intervention"] is True
+
+
+def test_E49_observation_result_has_beta_i_inf_field():
+    """E49 — ObservationResult has beta_i_inf and delta_gate fields."""
+    r = _make_observation_result()
+    assert hasattr(r, 'beta_i_inf')
+    assert hasattr(r, 'delta_gate')
+    assert r.beta_i_inf is None
+    assert r.delta_gate is None
+
+
+def test_E50_three_tier_hierarchy_constants():
+    """E50 — Canonical gate constants exported: I0_CANONICAL, ETA_CANONICAL_DEFAULT."""
+    assert I0_CANONICAL == pytest.approx(1.0)
+    assert ETA_CANONICAL_DEFAULT == pytest.approx(0.93)

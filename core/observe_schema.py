@@ -684,8 +684,11 @@ class ObservationResult:
     phi_sigma_divergence: Optional[float] = None
     warnings: list[str] = field(default_factory=list)
     timestamp: datetime = field(default_factory=datetime.utcnow)
-    # Session 35 — Equation 7 φ dynamics inputs
-    # r_value: β proxy for gateway ratio R = C/B (β ≥ 1 → competitive, β < 1 → cooperative)
-    # d_value: disruption intensity D(t) ≥ 0; 0.0 default until three-layer logging (Session 36)
-    r_value: Optional[float] = None    # R proxy for Eq.7 H gates; None if β not computable
-    d_value: float = 0.0               # D(t) disruption intensity; always 0.0 until Session 36
+    # Session 35 — Equation 7 φ dynamics inputs (retained for backward compat)
+    # r_value: β proxy for the gateway ratio R = C/B (retained; not used for structural Eq.7 gate)
+    # d_value: disruption intensity D(t) ≥ 0 from L1 rolling mean (Session 36)
+    r_value: Optional[float] = None    # R proxy (backward compat); not the canonical gate input
+    d_value: float = 0.0               # D(t) disruption intensity from L1 rolling mean
+    # NEW — alignment pass v3.3.0
+    beta_i_inf: Optional[float] = None   # β×i_∞ canonical gate value (β×i_∞ < 1 ⇒ cooperative)
+    delta_gate: Optional[float] = None   # Δ_gate = β×i_∞ − 1 (stagnation detector)

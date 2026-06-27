@@ -122,6 +122,8 @@ CREATE TABLE IF NOT EXISTS telemetry_l2 (
     eta_estimate   REAL,
     rse            REAL,
     rse_band       TEXT,
+    beta_i_inf     REAL,
+    delta_gate     REAL,
     timestamp      REAL    NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_tl2_agent ON telemetry_l2(agent_id);
@@ -186,6 +188,8 @@ class L2Snapshot:
     eta_estimate:   Optional[float] = None   # current η estimate
     rse:            Optional[float] = None   # residual standard error
     rse_band:       Optional[str]   = None   # 'EXCELLENT'|'ACCEPTABLE'|'POOR'
+    beta_i_inf:     Optional[float] = None   # β×i_∞ canonical gate value (alignment pass v3.3.0)
+    delta_gate:     Optional[float] = None   # Δ_gate = β×i_∞ − 1 (stagnation detector)
     session_id:     Optional[str]   = None
     timestamp:      float           = field(default_factory=time.time)
 
@@ -502,9 +506,22 @@ class AIOSTelemetry:
         logger.debug("AIOSTelemetry: schema applied to %s", self.db_path)
 
     def apply_schema(self) -> None:
-        """Idempotent — CREATE TABLE IF NOT EXISTS."""
+        """
+        Idempotent — CREATE TABLE IF NOT EXISTS.
+        Also applies ALTER TABLE migrations for columns added in later sessions.
+        """
         with self._lock:
             self._conn.executescript(TELEMETRY_SCHEMA)
+            # Alignment pass v3.3.0: add beta_i_inf / delta_gate to existing L2 tables.
+            # SQLite does not support ADD COLUMN IF NOT EXISTS; use try/except.
+            for col_sql in [
+                "ALTER TABLE telemetry_l2 ADD COLUMN beta_i_inf REAL",
+                "ALTER TABLE telemetry_l2 ADD COLUMN delta_gate REAL",
+            ]:
+                try:
+                    self._conn.execute(col_sql)
+                except Exception:
+                    pass  # Column already exists — safe to ignore
 
     def close(self) -> None:
         if self._conn:
@@ -616,8 +633,10 @@ class AIOSTelemetry:
                     """INSERT INTO telemetry_l2
                        (agent_id, session_id,
                         i_value, phi, beta_service, r_value, sigma, ci,
-                        eta_estimate, rse, rse_band, timestamp)
-                       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+                        eta_estimate, rse, rse_band,
+                        beta_i_inf, delta_gate,
+                        timestamp)
+                       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                     (
                         snapshot.agent_id,
                         snapshot.session_id,
@@ -630,6 +649,8 @@ class AIOSTelemetry:
                         snapshot.eta_estimate,
                         snapshot.rse,
                         snapshot.rse_band,
+                        snapshot.beta_i_inf,
+                        snapshot.delta_gate,
                         snapshot.timestamp,
                     ),
                 )
@@ -643,7 +664,9 @@ class AIOSTelemetry:
                 rows = self._conn.execute(
                     """SELECT agent_id, session_id,
                               i_value, phi, beta_service, r_value, sigma, ci,
-                              eta_estimate, rse, rse_band, timestamp
+                              eta_estimate, rse, rse_band,
+                              beta_i_inf, delta_gate,
+                              timestamp
                        FROM telemetry_l2
                        WHERE agent_id = ?
                        ORDER BY timestamp DESC LIMIT ?""",
@@ -662,7 +685,9 @@ class AIOSTelemetry:
                         eta_estimate=r[8],
                         rse=r[9],
                         rse_band=r[10],
-                        timestamp=r[11],
+                        beta_i_inf=r[11],
+                        delta_gate=r[12],
+                        timestamp=r[13],
                     )
                     for r in rows
                 ]

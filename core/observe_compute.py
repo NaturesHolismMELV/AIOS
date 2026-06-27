@@ -67,7 +67,13 @@ from core.observe_schema import (
     ScoredValue,
 )
 from core.observe_validator import ObservationValidator
-from core.melv_engine import _beta_norm, I_FLOOR  # Session 35 — β_norm correction
+from core.melv_engine import (
+    _beta_norm,
+    _compute_i_inf,
+    I_FLOOR,
+    I0_CANONICAL,
+    ETA_CANONICAL_DEFAULT,
+)  # Session 35 β_norm correction; alignment pass v3.3.0 canonical gate
 
 # ── Constants ──────────────────────────────────────────────────────────────
 BETA_FLOOR   = 0.1
@@ -588,12 +594,10 @@ class ObservationComputer:
                    epsilon.intrinsic, epsilon.ecosystem, epsilon.architectural]:
             all_warnings.extend(sv.warnings)
 
-        # Session 35 — Equation 7 inputs
-        # r_value: use raw β as R proxy. β ≥ 1 → competitive (R ≥ 0.50),
-        # β < 1 → cooperative (R < 0.50). None if β not computable.
+        # Session 35 — r_value retained for backward compat (not the structural gate input)
         r_value = beta.value if beta.computable else None
 
-        # Session 36 — d_value populated from telemetry if available.
+        # Session 36 — d_value from L1 telemetry rolling mean.
         # Falls back to 0.0 when no L1 records exist (bootstrap).
         d_value = 0.0
         try:
@@ -612,6 +616,33 @@ class ObservationComputer:
         except Exception:
             pass  # telemetry layer unavailable; keep d_value=0.0
 
+        # Alignment pass v3.3.0 — canonical gate values (Canonical Ref v1.5.6 Eq.7)
+        # β×i_∞ = β × i_∞(i₀, η, ε_effective, β) — the Tier 1 canonical gate input.
+        # η: pull from L3 telemetry posterior if ≥100 L1 records; else ETA_CANONICAL_DEFAULT.
+        beta_i_inf: Optional[float] = None
+        delta_gate: Optional[float] = None
+        if beta.computable:
+            eta = ETA_CANONICAL_DEFAULT
+            # Try to get L3 posterior when >= ETA_MIN_INTERACTIONS L1 records.
+            try:
+                from core.telemetry import AIOSTelemetry as _Tel, ETA_MIN_INTERACTIONS as _MIN
+                import os as _os2
+                _db2 = _os2.environ.get(
+                    "AIOS_DB_PATH",
+                    _os2.path.join(
+                        _os2.path.dirname(_os2.path.dirname(_os2.path.abspath(__file__))),
+                        "aios_state.db",
+                    ),
+                )
+                _l3 = _Tel(_db2).get_eta_estimate(payload.agent_id)
+                if _l3 is not None and _l3.interaction_count >= _MIN:
+                    eta = _l3.eta_posterior
+            except Exception:
+                pass  # L3 unavailable; keep ETA_CANONICAL_DEFAULT
+            i_inf      = _compute_i_inf(I0_CANONICAL, eta, epsilon.effective, beta.value)
+            beta_i_inf = round(beta.value * i_inf, 6)
+            delta_gate = round(beta_i_inf - 1.0, 6)
+
         return ObservationResult(
             agent_id=payload.agent_id,
             phi=phi,
@@ -623,5 +654,7 @@ class ObservationComputer:
             warnings=all_warnings,
             timestamp=datetime.utcnow(),
             r_value=r_value,
-            d_value=d_value,  # D(t) from L1 rolling mean (Session 36)
+            d_value=d_value,
+            beta_i_inf=beta_i_inf,
+            delta_gate=delta_gate,
         )

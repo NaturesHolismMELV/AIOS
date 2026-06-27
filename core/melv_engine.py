@@ -231,10 +231,46 @@ def _beta_norm(beta_raw: float) -> float:
     Used ONLY in the master equation i(t) = i₀ × (1 − ε × φ(t) × β_norm(t)).
     NOT used in quorum gate, gateway condition, or β provisioning.
 
-    MAIES Form C correction C1. Canonical reference v1.2 Part II.
+    MAIES Form C correction C1. Canonical reference v1.5.6 Part II.
     Session 35 (v3.1.0). Epistemic status: ③.
     """
     return beta_raw / (1.0 + beta_raw)
+
+
+def _compute_i_inf(
+    i0:       float,
+    eta:      float,
+    epsilon:  float,
+    beta_raw: float,
+) -> float:
+    """
+    Compute i_∞ — the cooperation-evolution parameter function at φ=1.
+
+    i_∞ = i₀ × (1 − η × tanh(ε × β_norm / η))
+
+    where β_norm = β/(1+β) ∈ (0,1)
+          φ = 1  (parameter function evaluated at full maturity)
+
+    This is a PARAMETER FUNCTION, not the current i(t).
+    It characterises the long-run equilibrium the system converges toward.
+    Used in the canonical gate condition β×i_∞ < 1 and the stagnation
+    detector Δ_gate = β×i_∞ − 1.
+
+    Parameters
+    ----------
+    i0       : baseline interaction cost ratio (AIOS: 1.0 normalised)
+    eta      : saturation capacity η ∈ (0, 1]; use ETA_CANONICAL_DEFAULT
+               if L3 posterior unavailable
+    epsilon  : ε_effective — adaptive plasticity
+    beta_raw : raw β ∈ [0.1, 3.0] (from BetaEnvironment or observe())
+
+    Canonical Reference: v1.5.6 Equation 7, FB-ABM V1.0 confirmed June 2026.
+    Epistemic status: ③ (Jacobian-derived + FB-ABM V1.0 confirmed).
+    """
+    eta_safe = max(0.01, min(1.0, eta))
+    beta_n   = _beta_norm(beta_raw)
+    arg      = epsilon * beta_n / eta_safe
+    return i0 * (1.0 - eta_safe * math.tanh(arg))
 
 
 # Computational floor for i(t) — guard against unbounded negative values
@@ -242,25 +278,47 @@ def _beta_norm(beta_raw: float) -> float:
 I_FLOOR = -5.0   # i(t) clamped to [I_FLOOR, 1.0] — ② theoretical
 
 # ── EQUATION 7 φ DYNAMICS CONSTANTS (Session 35 — v3.1.0) ────────────────
-# Canonical reference v1.2 Part IV Equation 7.
+# Canonical reference v1.5.6 Part IV Equation 7 (FB-ABM V1.0 confirmed June 2026).
 #
-# dφ/dt = α × (1−φ) × H(0.50 − R(t)) × max(0, 1−i(t))
-#         − δ × D(t) × φ × H(R(t) − 0.50)
+# CANONICAL FORM (alignment pass — v3.3.0):
+#   dφ/dt = α(1−φ) × H(1−β×i_∞) × max(0,1−i(t))   [BUILD]
+#           − δ×D(t)×φ × H(β×i_∞−1)                 [DECAY]
 #
-# Compound gating rule:
-#   φ BUILDS only when H(0.50 − R) = 1 AND max(0, 1−i) > 0
-#   i.e. R < 0.50 AND i < 1.0 simultaneously.
-#   If either condition fails, the build term is zero.
-#   This means the recovery clock freezes outside the eligible regime.
+# where i_∞ = i₀ × (1 − η × tanh(ε × β_norm / η))   [parameter function at φ=1]
+#       β_norm = β/(1+β)
+#       D(t) = max(0, ΔC/C_base + ΔTAX/TAX_base)
+#       α=0.01, δ=0.10 (α ≪ δ — 10× asymmetry)
+#
+# Gate hierarchy:
+#   Tier 1 — CANONICAL: H(1−β×i_∞) / H(β×i_∞−1)  — Jacobian-derived,
+#             FB-ABM V1.0 confirmed. Governs all structural φ decisions.
+#   Tier 2 — EMPIRICAL PROXY: φ·β > 0.3  — ABM V2.1 binary classifier
+#             (405 runs, sensitivity=1.0, specificity=0.997).
+#             Diagnostic only. NOT used in φ dynamics.
+#   Tier 3 — ILLUSTRATIVE/LEGACY: τ=0.5 sigmoid (_quorum_gate())
+#             Retained for soft agent routing and provisioning step scaling
+#             ONLY. NOT used in structural gate decisions.
+#
+# PHI_GATEWAY_THRESHOLD = 0.50 — RETIRED from structural gate role.
+#   Retained as exported constant for backward compatibility only.
+#   The R < 0.50 scalar gate is superseded by the Jacobian-derived β×i_∞=1
+#   boundary surface. See carryover §1 "What is settled" — C5 finding.
+#   DO NOT use PHI_GATEWAY_THRESHOLD in any new structural gate logic.
 #
 # α ≪ δ: φ decays faster than it builds (asymmetry confirmed ABM V2.1 T1.5).
-#
-# Epistemic status: ② theoretical (α and δ values). Calibration pending
-# empirical data (ABM Test Suite 1, Session 38).
+# Epistemic status: ③ (Jacobian-derived; FB-ABM V1.0 confirmed June 2026).
 
-PHI_BUILD_RATE_ALPHA = 0.01   # α — φ build rate; calibrate from ABM T1.5
-PHI_DECAY_RATE_DELTA = 0.10   # δ — φ decay rate; δ ≫ α (10× asymmetry)
-PHI_GATEWAY_THRESHOLD = 0.50  # R threshold for Heaviside gates (canonical)
+PHI_BUILD_RATE_ALPHA  = 0.01   # α — φ build rate; ABM T1.5 confirmed
+PHI_DECAY_RATE_DELTA  = 0.10   # δ — φ decay rate; δ ≫ α (10× asymmetry)
+PHI_GATEWAY_THRESHOLD = 0.50   # RETIRED — backward compat only; see note above
+
+# ── CANONICAL GATE PARAMETERS (Alignment pass — v3.3.0) ──────────────────
+# i₀ — baseline interaction cost ratio (AIOS: normalised to 1.0 per BI-NLS).
+#   Canonical domain: i₀ > 1. The BI-NLS telemetry uses i₀=1.0 (normalised).
+# η  — saturation capacity (bee-flower calibration: 0.93).
+#   Overridden per-agent by BI-NLS L3 posterior once ≥100 L1 records exist.
+I0_CANONICAL          = 1.0    # i₀ normalised baseline (see telemetry.py BI-NLS)
+ETA_CANONICAL_DEFAULT = 0.93   # η default; bee-flower calibration (canonical Ref v1.5.6)
 
 # ── SESSION 37 — DUNGBEETLE + IRREVERSIBILITY CONSTANTS (v3.2.0) ─────────
 # Canonical reference v1.2 Part VI Items 7, 11, 12.
@@ -1145,31 +1203,36 @@ class MELVKernel:
     def _apply_phi_eq7(
         self,
         agent,
-        r_value: Optional[float],
-        i_value: Optional[float],
-        d_value: float = 0.0,
+        beta_i_inf: Optional[float],
+        i_value:    Optional[float],
+        d_value:    float = 0.0,
     ) -> tuple[float, str]:
         """
         Apply Equation 7 φ dynamics increment to agent.phi.
 
-        Canonical reference: v1.2 Part IV Equation 7.
+        Canonical Reference: v1.5.6 Equation 7 (alignment pass v3.3.0).
+        FB-ABM V1.0 confirmed June 2026. Epistemic status: ③.
 
-        dφ/dt = α × (1−φ) × H(0.50 − R(t)) × max(0, 1−i(t))
-                − δ × D(t) × φ × H(R(t) − 0.50)
+        dφ/dt = α(1−φ) × H(1−β×i_∞) × max(0,1−i(t))   [BUILD]
+                − δ×D(t)×φ × H(β×i_∞−1)                 [DECAY]
 
-        Compound gating rule (Session 35):
-          BUILD fires only when BOTH:
-            (1) R < PHI_GATEWAY_THRESHOLD  (H(0.50 − R) = 1)
-            (2) i < 1.0                    (max(0, 1−i) > 0)
-          DECAY fires when R ≥ PHI_GATEWAY_THRESHOLD.
-          If R is None (not yet computable), neither fires.
+        Gate hierarchy (Canonical Ref v1.5.6):
+          Tier 1 — CANONICAL (this function):
+            BUILD gate: H(1 − β×i_∞) = 1  iff  β×i_∞ < 1.0
+            DECAY gate: H(β×i_∞ − 1) = 1  iff  β×i_∞ > 1.0
+          Tier 2 — EMPIRICAL PROXY: φ·β>0.3  (diagnostic; not used here)
+          Tier 3 — ILLUSTRATIVE: τ=0.5 sigmoid  (soft routing; not used here)
 
         Parameters
         ----------
-        agent       : AgentProfile — mutated in place
-        r_value     : float | None — current R = C/B ratio; None if unavailable
-        i_value     : float | None — current i(t) proxy (CI or None)
-        d_value     : float — disruption intensity D(t) ≥ 0
+        agent      : AgentProfile — mutated in place
+        beta_i_inf : float | None — β×i_∞ canonical gate value.
+                     Compute via: beta_raw × _compute_i_inf(i0, eta, eps, beta_raw).
+                     None → both gates inactive (no φ change).
+        i_value    : float | None — current i(t) proxy (CI or None).
+                     BUILD factor = max(0, 1−i_value). None blocks build.
+        d_value    : float — disruption intensity D(t) ≥ 0.
+                     DECAY fires only when D(t) > 0 AND β×i_∞ > 1.
 
         Returns
         -------
@@ -1177,21 +1240,23 @@ class MELVKernel:
           delta = net φ change applied (0.0 if gate not met)
           event_string = description for governance log
         """
-        if r_value is None:
+        if beta_i_inf is None:
             return 0.0, ""
 
         phi_old = agent.phi
         delta   = 0.0
 
-        if r_value < PHI_GATEWAY_THRESHOLD:
-            # BUILD branch: H(0.50 − R) = 1
-            # Compound gate: also requires i < 1.0
+        if beta_i_inf < 1.0:
+            # BUILD branch: H(1 − β×i_∞) = 1
+            # Compound gate: also requires i < 1.0 simultaneously
             if i_value is not None and i_value < 1.0:
                 build_factor = max(0.0, 1.0 - i_value)
                 delta = PHI_BUILD_RATE_ALPHA * (1.0 - phi_old) * build_factor
             # If i_value is None or i_value ≥ 1.0: build term is zero
         else:
-            # DECAY branch: H(R − 0.50) = 1
+            # DECAY branch: H(β×i_∞ − 1) = 1
+            # Stagnation finding: decay fires only when D(t) > 0 AND β×i_∞ > 1.
+            # β×i_∞ > 1 alone stops φ accumulation but does not erase history.
             if d_value > 0.0:
                 delta = -(PHI_DECAY_RATE_DELTA * d_value * phi_old)
 
@@ -1205,10 +1270,84 @@ class MELVKernel:
         event = (
             f"PHI_EQ7_{direction}: {agent.agent_id} "
             f"φ {phi_old:.4f} → {new_phi:.4f} "
-            f"(R={r_value:.3f}, i={i_value if i_value is not None else 'N/A'}, "
+            f"(β×i∞={beta_i_inf:.4f}, i={i_value if i_value is not None else 'N/A'}, "
             f"D={d_value:.3f}, Δ={delta:+.4f})"
         )
         return delta, event
+
+    @staticmethod
+    def compute_stagnation_state(
+        beta_i_inf: float,
+        d_value:    float,
+    ) -> dict:
+        """
+        Canonical stagnation detector (alignment pass v3.3.0).
+
+        Δ_gate = β×i_∞ − 1   [canonical gate displacement]
+
+        Three runtime states (Canonical Ref v1.5.6 §3 stagnation detector):
+          STABLE     — Δ_gate < 0, D(t) = 0
+                       Cooperative basin stable. Log; no intervention.
+          STAGNATION — Δ_gate > 0, D(t) = 0
+                       φ accumulation has ceased. Hidden fragility.
+                       Governance warning: β×i_∞ > 1 without acute disruption.
+          COLLAPSE   — Δ_gate > 0, D(t) > 0
+                       Decay term firing. Active intervention required.
+
+        Stagnation finding (June 2026):
+          The decay term fires only when D(t)>0 AND H(β×i_∞−1)=1 simultaneously.
+          Structural cooperative basin closure WITHOUT an acute disruption event
+          stops φ accumulation but does NOT erase accumulated cooperative history.
+          A real disruption event is required to activate decay.
+
+        Parameters
+        ----------
+        beta_i_inf : β×i_∞ value from _compute_i_inf()
+        d_value    : D(t) disruption intensity from L1 rolling mean
+
+        Returns dict with:
+          delta_gate  : float — Δ_gate = β×i_∞ − 1
+          state       : str   — STABLE | STAGNATION | COLLAPSE
+          intervention: bool  — True when active intervention is required
+          description : str   — governance narrative
+        """
+        delta_gate = beta_i_inf - 1.0
+
+        if delta_gate < 0.0:
+            state        = "STABLE"
+            intervention = False
+            description  = (
+                f"Cooperative basin stable: β×i∞={beta_i_inf:.4f} < 1 "
+                f"(Δ_gate={delta_gate:+.4f}). φ accumulation active."
+            )
+        elif d_value <= 0.0:
+            state        = "STAGNATION"
+            intervention = False
+            description  = (
+                f"Stagnation regime: β×i∞={beta_i_inf:.4f} > 1 "
+                f"(Δ_gate={delta_gate:+.4f}), D(t)={d_value:.3f}=0. "
+                "φ accumulation has ceased. Hidden fragility — "
+                "no decay yet (requires D(t)>0 to fire). "
+                "Monitor: provision β or reduce ε to restore Δ_gate < 0."
+            )
+        else:
+            state        = "COLLAPSE"
+            intervention = True
+            description  = (
+                f"Collapse regime: β×i∞={beta_i_inf:.4f} > 1 "
+                f"(Δ_gate={delta_gate:+.4f}), D(t)={d_value:.3f} > 0. "
+                "Decay term firing — accumulated cooperative history degrading. "
+                "Active intervention required."
+            )
+
+        return {
+            "delta_gate":   round(delta_gate, 4),
+            "state":        state,
+            "intervention": intervention,
+            "description":  description,
+            "beta_i_inf":   round(beta_i_inf, 4),
+            "d_value":      d_value,
+        }
 
     # ── CI DYNAMICS (Session 9) ───────────────────────────────────────────
 
@@ -1391,20 +1530,32 @@ class MELVKernel:
         """
         Sigmoid quorum gate function.
 
+        ══ TIER 3 — ILLUSTRATIVE / LEGACY ══
+        This function implements the τ=0.5 sigmoid (Equation 3).
+        Canonical Reference v1.5.6: Tier 3 is retained for SOFT AGENT
+        ROUTING and PROVISIONING STEP SCALING ONLY.
+
+        DO NOT use this function as a structural gate for φ dynamics.
+        The canonical gate (Tier 1) is β×i_∞ < 1, computed via
+        _compute_i_inf() and used in _apply_phi_eq7().
+        The empirical proxy (Tier 2) is φ·β > 0.3 — diagnostic only.
+
         Returns a value in (0, 1) representing provisioning strength.
-        Near 1.0 when phi*beta << tau (stressed ecosystem → strong intervention).
-        Near 0.0 when phi*beta >> tau (healthy ecosystem  → light touch).
+        Near 1.0 when phi*beta << tau (stressed → strong intervention).
+        Near 0.0 when phi*beta >> tau (healthy  → light touch).
 
         Inverted sigmoid:  f(x) = 1 / (1 + exp(k * (x − τ)))
-          x=tau  → f = 0.5  (inflection — proportional response at quorum threshold)
+          x=tau  → f = 0.5  (inflection — proportional response)
           x→0    → f → 1.0  (fully stressed — maximum provisioning)
           x→∞    → f → 0.0  (fully healthy  — minimal provisioning)
 
         Biological correspondence (MAIES Event 2, Nadell et al. 2016):
-          φ·β in MELV  ≡  population density N in bacterial quorum sensing
-          τ in MELV    ≡  quorum threshold N_threshold
-          k in MELV    ≡  sigmoid sharpness
-        Constants τ=0.5, k=10 are ABM V2.1 verified (③). DO NOT CHANGE.
+          φ·β in MELV ≡ population density N in bacterial quorum sensing
+          τ in MELV   ≡ quorum threshold N_threshold
+          k in MELV   ≡ sigmoid sharpness
+        Constants τ=0.5, k=10 are ABM V2.1 calibrated (③).
+        Sensitivity=1.0/specificity=0.997 is correctly attributed to
+        φ·β>0.3 (Tier 2), NOT to this sigmoid (adjudicated June 2026).
         """
         return 1.0 / (1.0 + math.exp(k * (phi_beta - tau)))
 
@@ -1974,18 +2125,70 @@ class MELVKernel:
                 agent.status = AgentStatus.ACTIVE
                 events.append(f"STATUS_PROMOTED: {agent_id} MATURING → ACTIVE")
 
-            # ── 2b. Equation 7 φ dynamics (Session 35 — v3.1.0) ──────────
-            # Apply compound-gated build/decay on top of the blend update.
-            # Only fires when both gate conditions are met simultaneously.
+            # ── 2b. Equation 7 φ dynamics (alignment pass v3.3.0) ────────
+            # Canonical gate: β×i_∞ < 1  (Jacobian-derived, FB-ABM V1.0 confirmed).
+            # Compute β×i_∞ from observe() output: β, ε_effective, and η.
+            # η is taken from result if available, else ETA_CANONICAL_DEFAULT.
+            beta_i_inf = getattr(result, "beta_i_inf", None)
+            if beta_i_inf is None and result.beta.computable:
+                # Compute inline if observe_compute didn't supply it
+                eta = ETA_CANONICAL_DEFAULT
+                beta_i_inf = result.beta.value * _compute_i_inf(
+                    I0_CANONICAL,
+                    eta,
+                    result.epsilon.effective,
+                    result.beta.value,
+                )
+
             eq7_delta, eq7_event = self._apply_phi_eq7(
                 agent=agent,
-                r_value=result.r_value,
-                i_value=result.ci,   # CI ≈ 1−ε×φ×β_norm; None if gate unmet
+                beta_i_inf=beta_i_inf,
+                i_value=result.ci,   # CI proxy for max(0,1−i); None if gate unmet
                 d_value=result.d_value,
             )
             if eq7_delta != 0.0:
                 phi_applied = agent.phi
                 events.append(eq7_event)
+
+            # ── 2c. Stagnation detector ───────────────────────────────────
+            if beta_i_inf is not None:
+                stag = self.compute_stagnation_state(beta_i_inf, result.d_value)
+                delta_gate = stag["delta_gate"]
+                if stag["state"] != "STABLE":
+                    events.append(
+                        f"STAGNATION_DETECTOR [{stag['state']}]: {stag['description']}"
+                    )
+                # Always log telemetry for plotting against theoretical boundary
+                events.append(
+                    f"TELEMETRY: β×i∞={beta_i_inf:.4f} Δ_gate={delta_gate:+.4f} "
+                    f"φ={phi_applied:.4f} D={result.d_value:.3f} "
+                    f"state={stag['state']}"
+                )
+                # Attempt L2 telemetry write (non-blocking)
+                try:
+                    import os as _os
+                    from core.telemetry import AIOSTelemetry as _Tel, L2Snapshot as _L2
+                    _db = _os.environ.get(
+                        "AIOS_DB_PATH",
+                        _os.path.join(
+                            _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+                            "aios_state.db",
+                        ),
+                    )
+                    _tel = _Tel(_db)
+                    _snap = _L2(
+                        agent_id=agent_id,
+                        phi=phi_applied,
+                        beta_service=result.beta.value if result.beta.computable else None,
+                        r_value=getattr(result, "r_value", None),
+                        ci=result.ci,
+                        beta_i_inf=round(beta_i_inf, 6),
+                        delta_gate=round(delta_gate, 6),
+                    )
+                    _tel.log_l2(_snap)
+                    _tel.close()
+                except Exception:
+                    pass  # telemetry non-critical; governance loop continues
 
         # ── 3. Provision β from observe() β result if status ③ ────────────
         beta_provisioned = False
@@ -2150,6 +2353,7 @@ class MELVKernel:
                 "agent_id":            agent_id,
                 "beta_service_without": beta_without,
                 "sensitivity":         sensitivity,
+
                 "is_dungbeetle":       is_dungbeetle,
             }
 
