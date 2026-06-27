@@ -860,6 +860,23 @@ class MELVKernel:
             # Cooperative: reset contention depth for this pair
             self._contention_depth[pair_key] = 0
 
+        # Session 37: L1 telemetry — wire cost/benefit into SQLite for BI-NLS η estimation
+        try:
+            import os as _os
+            from core.telemetry import AIOSTelemetry as _Tel, L1Record as _L1
+            _db = _os.environ.get(
+                "AIOS_DB_PATH",
+                _os.path.join(
+                    _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+                    "aios_state.db",
+                ),
+            )
+            _tel = _Tel(_db)
+            _tel.log_l1(_L1(agent_id=agent_a, c_proxy=cost, b_proxy=benefit, tax_proxy=0.0))
+            _tel.close()
+        except Exception:
+            pass  # telemetry non-critical
+
         return record
 
     def _kernel_respond(self, record: InteractionRecord, resource_type: str = "compute"):
@@ -965,6 +982,37 @@ class MELVKernel:
         self.events.append(event)
         if self._persistence:
             self._persistence.save_event(event)
+
+        # Session 37: L2 telemetry — log governance snapshot for diagnostic plots
+        try:
+            import os as _os
+            from core.telemetry import AIOSTelemetry as _Tel, L2Snapshot as _L2
+            _db = _os.environ.get(
+                "AIOS_DB_PATH",
+                _os.path.join(
+                    _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+                    "aios_state.db",
+                ),
+            )
+            _n    = len(self.agents)
+            _phi  = (sum(a.phi     for a in self.agents.values()) / _n) if _n else None
+            _eps  = (sum(a.epsilon for a in self.agents.values()) / _n) if _n else 3.0
+            _beta = self.beta.get(resource_type)
+            _i_inf = _compute_i_inf(I0_CANONICAL, ETA_CANONICAL_DEFAULT, _eps, _beta)
+            _bii   = round(_beta * _i_inf, 6)
+            _dg    = round(_bii - 1.0, 6)
+            _tel   = _Tel(_db)
+            _tel.log_l2(_L2(
+                agent_id=record.agent_a,
+                i_value=round(bi, 6),
+                phi=round(_phi, 6) if _phi is not None else None,
+                beta_service=round(_beta, 6),
+                beta_i_inf=_bii,
+                delta_gate=_dg,
+            ))
+            _tel.close()
+        except Exception:
+            pass  # telemetry non-critical; governance loop continues
 
     @staticmethod
     def _suggested_alt_domain(resource_type: str) -> str:
