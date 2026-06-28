@@ -995,18 +995,15 @@ class MELVKernel:
                 ),
             )
             _n    = len(self.agents)
-            _phi  = (sum(a.phi     for a in self.agents.values()) / _n) if _n else None
-            _eps  = (sum(a.epsilon for a in self.agents.values()) / _n) if _n else 3.0
-            _beta = self.beta.get(resource_type)
-            _i_inf = _compute_i_inf(I0_CANONICAL, ETA_CANONICAL_DEFAULT, _eps, _beta)
-            _bii   = round(_beta * _i_inf, 6)
-            _dg    = round(_bii - 1.0, 6)
-            _tel   = _Tel(_db)
+            _phi  = (sum(a.phi for a in self.agents.values()) / _n) if _n else None
+            _bii  = round(bi, 6)          # bi is the live pair-level β×i value, already computed
+            _dg   = round(bi - 1.0, 6)
+            _tel  = _Tel(_db)
             _tel.log_l2(_L2(
                 agent_id=record.agent_a,
                 i_value=round(bi, 6),
                 phi=round(_phi, 6) if _phi is not None else None,
-                beta_service=round(_beta, 6),
+                beta_service=None,         # not reliably available at this call site
                 beta_i_inf=_bii,
                 delta_gate=_dg,
             ))
