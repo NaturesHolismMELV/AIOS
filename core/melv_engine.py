@@ -899,16 +899,16 @@ class MELVKernel:
         if record.interaction_type == InteractionType.THRESHOLD:
             if pattern['escalation_needed']:
                 # 3rd+ same-action event — provision β (Session 25: sigmoid-scaled step ③)
-                phi_beta = self.phi_beta_quorum()
-                gate     = self._quorum_gate(phi_beta)
-                step     = PROVISION_STEP_FLOOR + gate * (PROVISION_STEP_CEIL - PROVISION_STEP_FLOOR)
+                phi_beta    = self.phi_beta_quorum()
+                quorum_gate = self._quorum_gate(phi_beta)
+                step        = PROVISION_STEP_FLOOR + quorum_gate * (PROVISION_STEP_CEIL - PROVISION_STEP_FLOOR)
                 self.beta.set(resource_type, self.beta.get(resource_type) + step)
                 new_bi = max(0.1, bi - step)
                 action = KernelAction.PROVISION_BETA
                 desc = (
                     f"{record.agent_a} × {record.agent_b} threshold zone "
                     f"(βi={bi:.3f}), escalation_needed=True. "
-                    f"φ·β={phi_beta:.3f}, gate={gate:.3f}. "
+                    f"φ·β={phi_beta:.3f}, quorum_gate={quorum_gate:.3f}. "
                     f"β provisioned for {resource_type} (+{step:.3f}). βi → {new_bi:.3f}"
                 )
                 if self._persistence:
@@ -928,9 +928,9 @@ class MELVKernel:
             if pattern['structurally_incompatible']:
                 # Compound intervention: provision β AND permanent niche tag
                 # Session 25: sigmoid-scaled step ③
-                phi_beta = self.phi_beta_quorum()
-                gate     = self._quorum_gate(phi_beta)
-                step     = PROVISION_STEP_FLOOR + gate * (PROVISION_STEP_CEIL - PROVISION_STEP_FLOOR)
+                phi_beta    = self.phi_beta_quorum()
+                quorum_gate = self._quorum_gate(phi_beta)
+                step        = PROVISION_STEP_FLOOR + quorum_gate * (PROVISION_STEP_CEIL - PROVISION_STEP_FLOOR)
                 self.beta.set(resource_type, self.beta.get(resource_type) + step)
                 new_bi = max(0.1, bi * 0.50)
                 action = KernelAction.PROVISION_BETA
@@ -945,7 +945,7 @@ class MELVKernel:
                         self._persistence.save_agent(agent_a_profile)
                 desc = (
                     f"{record.agent_a} × {record.agent_b} structurally incompatible "
-                    f"(βi={bi:.3f}). φ·β={phi_beta:.3f}, gate={gate:.3f}. "
+                    f"(βi={bi:.3f}). φ·β={phi_beta:.3f}, quorum_gate={quorum_gate:.3f}. "
                     f"Compound: β provisioned (+{step:.3f}) + permanent niche tag. "
                     f"βi → {new_bi:.3f}"
                 )
