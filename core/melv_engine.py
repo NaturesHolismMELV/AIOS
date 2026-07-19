@@ -1003,7 +1003,7 @@ class MELVKernel:
                 agent_id=record.agent_a,
                 i_value=round(bi, 6),
                 phi=round(_phi, 6) if _phi is not None else None,
-                beta_service=None,         # not reliably available at this call site
+                beta_service=round(record.beta, 6),  # frozen at interaction time, before any provisioning mutates self.beta
                 beta_i_inf=_bii,
                 delta_gate=_dg,
             ))
